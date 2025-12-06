@@ -1,5 +1,7 @@
+// models/Product.js
 const { DataTypes } = require('sequelize');
 const sequelize = require('../db');
+const { slugify } = require('../utils/slugify');
 
 const Product = sequelize.define('Product', {
   id: {
@@ -10,6 +12,11 @@ const Product = sequelize.define('Product', {
   name: {
     type: DataTypes.STRING(200),
     allowNull: false
+  },
+  slug: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true
   },
   description: {
     type: DataTypes.TEXT,
@@ -38,7 +45,19 @@ const Product = sequelize.define('Product', {
   }
 }, {
   tableName: 'products',
-  timestamps: true
+  timestamps: true,
+  hooks: {
+    beforeValidate: (product) => {
+      if (product.name && !product.slug) {
+        product.slug = slugify(product.name);
+      }
+    },
+    beforeUpdate: (product) => {
+      if (product.changed('name')) {
+        product.slug = slugify(product.name);
+      }
+    }
+  }
 });
 
 module.exports = Product;

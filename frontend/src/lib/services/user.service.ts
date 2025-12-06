@@ -19,10 +19,15 @@ class UserService {
   }
 
   async getUserAddresses(id: number): Promise<UserAddress[]> {
-    const response = await apiClient.get<{ data: UserAddress[] }>(
-      API_ENDPOINTS.USERS.ADDRESSES(id)
-    );
-    return response.data.data;
+    try {
+      const response = await apiClient.get<{ data: UserAddress[] }>(
+        API_ENDPOINTS.USERS.ADDRESSES(id)
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error('Get addresses error:', error);
+      return []; // Return empty array instead of throwing
+    }
   }
 
   async addAddress(userId: number, data: Omit<UserAddress, 'id' | 'user_id'>): Promise<UserAddress> {
@@ -46,7 +51,9 @@ class UserService {
   }
 
   async deleteAddress(userId: number, addressId: number): Promise<void> {
-    await apiClient.delete(API_ENDPOINTS.USERS.DELETE_ADDRESS(userId, addressId));
+    await apiClient.delete(
+      API_ENDPOINTS.USERS.DELETE_ADDRESS(userId, addressId)
+    );
   }
 
   async setDefaultAddress(userId: number, addressId: number): Promise<UserAddress> {

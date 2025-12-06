@@ -22,9 +22,10 @@ export default function ProductsPage() {
 
   // Read category from URL
   useEffect(() => {
-    const categoryId = searchParams.get('category_id');
-    if (categoryId) {
-      setFilters(prev => ({ ...prev, category_id: Number(categoryId), page: 1 }));
+    const categorySlug = searchParams.get('category_slug');
+    
+    if (categorySlug) {
+      setFilters(prev => ({ ...prev, category_slug: String(categorySlug), page: 1 }));
     }
   }, [searchParams]);
 
@@ -58,6 +59,7 @@ export default function ProductsPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Products</h1>

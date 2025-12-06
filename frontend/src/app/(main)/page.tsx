@@ -173,7 +173,7 @@ export default function HomePage() {
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4">
             Featured Products
           </h2>
-          <p className="text-sm text-white sm:text-base md:text-lg text-gray-600 max-w-2xl mx-auto mb-6">
+          <p className="text-sm text-white sm:text-base md:text-lg max-w-2xl mx-auto mb-6">
             Check out our latest arrivals and trending items
           </p>
           <Link href="/products">

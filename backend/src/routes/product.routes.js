@@ -18,6 +18,7 @@ router.get('/', optionalAuth, productController.getAllProducts);
 router.get('/categories', productController.getAllCategories);
 router.get('/brands', productController.getAllBrands);
 router.get('/:id', optionalAuth, productController.getProductById);
+router.get('/category/:slug', productController.getProductsByCategory);
 
 // Protected routes (auth required)
 router.post('/',  productValidation, productController.createProduct);

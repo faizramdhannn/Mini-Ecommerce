@@ -57,17 +57,17 @@ export const ProductFilter = ({ onFilterChange }: ProductFilterProps) => {
             <input
               type="radio"
               name="category"
-              onChange={() => handleFilterChange('category_id', undefined)}
+              onChange={() => handleFilterChange('category_slug', undefined)}
               className="w-4 h-4"
             />
             <span className="text-sm">All Categories</span>
           </label>
           {categories.map((category) => (
-            <label key={category.id} className="flex items-center space-x-2 cursor-pointer">
+            <label key={category.name} className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="radio"
                 name="category"
-                onChange={() => handleFilterChange('category_id', category.id)}
+                onChange={() => handleFilterChange('category_slug', category.name)}
                 className="w-4 h-4"
               />
               <span className="text-sm">{category.name}</span>

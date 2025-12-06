@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { User, MapPin, ShoppingBag, LogOut, Edit, Plus, Home, Package } from 'lucide-react';
+import { User, MapPin, ShoppingBag, LogOut, Edit, Plus, Home, Package, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -26,6 +26,7 @@ export default function ProfilePage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [deletingAddressId, setDeletingAddressId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -33,7 +34,6 @@ export default function ProfilePage() {
       return;
     }
 
-    // Check for tab query parameter
     const tab = searchParams.get('tab');
     if (tab && ['info', 'addresses', 'orders'].includes(tab)) {
       setActiveTab(tab as TabType);
@@ -56,7 +56,6 @@ export default function ProfilePage() {
       setAddresses(data);
     } catch (error) {
       console.error('Failed to load addresses:', error);
-      // Don't show error toast if addresses are just empty
       setAddresses([]);
     } finally {
       setIsLoadingAddresses(false);
@@ -70,10 +69,30 @@ export default function ProfilePage() {
       setOrders(response.data);
     } catch (error) {
       console.error('Failed to load orders:', error);
-      // Don't show error toast if orders are just empty
       setOrders([]);
     } finally {
       setIsLoadingOrders(false);
+    }
+  };
+
+  const handleDeleteAddress = async (addressId: number) => {
+    if (!user) return;
+    
+    if (!confirm('Are you sure you want to delete this address?')) {
+      return;
+    }
+
+    setDeletingAddressId(addressId);
+    try {
+      await userService.deleteAddress(user.id, addressId);
+      toast.success('Address deleted successfully');
+      // Remove from local state
+      setAddresses(addresses.filter(addr => addr.id !== addressId));
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete address');
+    } finally {
+      setDeletingAddressId(null);
     }
   };
 
@@ -127,7 +146,6 @@ export default function ProfilePage() {
               </Button>
             </div>
 
-            {/* Default Address Preview */}
             {defaultAddress && (
               <div className="border-t pt-4 mb-4">
                 <div className="flex items-center gap-2 mb-3">
@@ -262,7 +280,7 @@ export default function ProfilePage() {
                           className="border rounded-lg p-4 hover:shadow-sm transition-shadow"
                         >
                           <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-1">
                               <h4 className="font-medium text-black">
                                 {address.label || 'Address'}
                               </h4>
@@ -270,13 +288,27 @@ export default function ProfilePage() {
                                 <Badge variant="success">Default</Badge>
                               )}
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => router.push(`/profile/addresses/${address.id}/edit`)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => router.push(`/profile/addresses/${address.id}/edit`)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Edit address"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAddress(address.id)}
+                                disabled={deletingAddressId === address.id}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                title="Delete address"
+                              >
+                                {deletingAddressId === address.id ? (
+                                  <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
+                              </button>
+                            </div>
                           </div>
                           <div className="space-y-1 text-sm text-gray-600">
                             <p className="font-medium text-black">{address.recipient_name}</p>

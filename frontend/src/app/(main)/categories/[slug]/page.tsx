@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { ProductGrid } from '@/components/product/ProductGrid';
-import { Pagination } from '@/components/ui/Pagination';
-import { Spinner } from '@/components/ui/Spinner';
-import { productService } from '@/lib/services/product.service';
-import type { Product, Category } from '@/types';
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { ProductGrid } from "@/components/product/ProductGrid";
+import { Pagination } from "@/components/ui/Pagination";
+import { Spinner } from "@/components/ui/Spinner";
+import { productService } from "@/lib/services/product.service";
+import type { Product, Category } from "@/types";
 
 export default function CategoryPage() {
   const params = useParams();
@@ -20,27 +20,28 @@ export default function CategoryPage() {
   });
 
   useEffect(() => {
-    if (params.id) {
+    const slug = params.slug || params.name;
+    if (slug) {
       loadCategory();
-      loadProducts(1);
+      loadProducts(1, String(slug));
     }
-  }, [params.id]);
+  }, [params]);
 
   const loadCategory = async () => {
     try {
       const categories = await productService.getCategories();
-      const found = categories.find(c => c.id === Number(params.id));
+      const found = categories.find((c) => c.name === String(params.name));
       setCategory(found || null);
     } catch (error) {
-      console.error('Failed to load category:', error);
+      console.error("Failed to load category:", error);
     }
   };
 
-  const loadProducts = async (page: number) => {
+  const loadProducts = async (page: number, slug: string) => {
     setIsLoading(true);
     try {
       const response = await productService.getProducts({
-        category_id: Number(params.id),
+        category_slug: slug,
         page,
         limit: 12,
       });
@@ -51,15 +52,18 @@ export default function CategoryPage() {
         total: response.pagination.total,
       });
     } catch (error) {
-      console.error('Failed to load products:', error);
+      console.error("Failed to load products:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handlePageChange = (page: number) => {
-    loadProducts(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const slug = params.slug || params.name;
+    if (slug) {
+      loadProducts(page, String(slug));
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   if (isLoading && !category) {
@@ -75,7 +79,7 @@ export default function CategoryPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">
-          {category?.name || 'Category'}
+          {category?.name || "Category"}
         </h1>
         <p className="text-gray-400">
           Showing {products.length} of {pagination.total} products

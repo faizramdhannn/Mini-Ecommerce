@@ -6,7 +6,16 @@ class ProductService {
    * Get all products dengan filter dan pagination
    */
   async getAllProducts(filters = {}) {
-    const { page = 1, limit = 10, search, category_id, brand_id, min_price, max_price } = filters;
+    const { 
+      page = 1, 
+      limit = 10, 
+      search, 
+      category_id,
+      category_slug, // ✅ Tambah filter by category slug
+      brand_id, 
+      min_price, 
+      max_price 
+    } = filters;
     const offset = (page - 1) * limit;
     
     const where = {};
@@ -16,9 +25,25 @@ class ProductService {
       where.name = { [Op.iLike]: `%${search}%` };
     }
     
-    // Filter category
+    // Filter category by ID
     if (category_id) {
       where.category_id = category_id;
+    }
+
+    // ✅ Filter category by slug
+    if (category_slug) {
+      const category = await Category.findOne({ where: { slug: category_slug } });
+      if (category) {
+        where.category_id = category.id;
+      } else {
+        // Return empty jika category tidak ditemukan
+        return {
+          products: [],
+          total: 0,
+          page: parseInt(page),
+          limit: parseInt(limit)
+        };
+      }
     }
     
     // Filter brand
@@ -49,7 +74,8 @@ class ProductService {
       products: rows,
       total: count,
       page: parseInt(page),
-      limit: parseInt(limit)
+      limit: parseInt(limit),
+      totalPages: Math.ceil(count / limit) // ✅ Tambah totalPages
     };
   }
 
@@ -70,6 +96,71 @@ class ProductService {
     }
     
     return product;
+  }
+
+  /**
+   * ✅ Get product by slug
+   */
+  async getProductBySlug(slug) {
+    const product = await Product.findOne({
+      where: { slug },
+      include: [
+        { model: Category, as: 'category' },
+        { model: Brand, as: 'brand' },
+        { model: ProductMedia, as: 'media' }
+      ]
+    });
+
+    if (!product) {
+      throw new Error('Product not found');
+    }
+
+    return product;
+  }
+
+  /**
+   * ✅ Get products by category slug
+   */
+  async getProductsByCategory(categorySlug, options = {}) {
+    const { page = 1, limit = 12 } = options;
+    
+    // Cari category dulu
+    const category = await Category.findOne({
+      where: { slug: categorySlug }
+    });
+
+    if (!category) {
+      throw new Error('Category not found');
+    }
+
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await Product.findAndCountAll({
+      where: { category_id: category.id },
+      include: [
+        { model: Category, as: 'category' },
+        { model: Brand, as: 'brand' },
+        { model: ProductMedia, as: 'media' }
+      ],
+      limit,
+      offset,
+      order: [['created_at', 'DESC']]
+    });
+
+    return {
+      data: rows,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        totalPages: Math.ceil(count / limit),
+        limit: parseInt(limit)
+      },
+      category: {
+        id: category.id,
+        name: category.name,
+        slug: category.slug
+      }
+    };
   }
 
   /**
@@ -115,14 +206,48 @@ class ProductService {
    * Get all categories
    */
   async getAllCategories() {
-    return await Category.findAll();
+    return await Category.findAll({
+      order: [['name', 'ASC']]
+    });
+  }
+
+  /**
+   * ✅ Get category by slug
+   */
+  async getCategoryBySlug(slug) {
+    const category = await Category.findOne({
+      where: { slug }
+    });
+
+    if (!category) {
+      throw new Error('Category not found');
+    }
+
+    return category;
   }
 
   /**
    * Get all brands
    */
   async getAllBrands() {
-    return await Brand.findAll();
+    return await Brand.findAll({
+      order: [['name', 'ASC']]
+    });
+  }
+
+  /**
+   * ✅ Get brand by slug
+   */
+  async getBrandBySlug(slug) {
+    const brand = await Brand.findOne({
+      where: { slug }
+    });
+
+    if (!brand) {
+      throw new Error('Brand not found');
+    }
+
+    return brand;
   }
 }
 

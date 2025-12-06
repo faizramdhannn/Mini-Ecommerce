@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, ShoppingBag, User, Menu, X, ChevronDown } from 'lucide-react';
+import { Search, ShoppingBag, User, Menu, X, ChevronDown, ReplaceAll } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/auth.store';
 import { useCartStore } from '@/lib/store/cart.store';
 import { useEffect, useState } from 'react';
@@ -80,8 +80,8 @@ export const Header = () => {
                     </Link>
                     {categories.map((category) => (
                       <Link
-                        key={category.id}
-                        href={`/categories/${category.id}`}
+                        key={category.name.replaceAll(" ","-").toLowerCase()}
+                        href={`/categories/${category.name.replaceAll(" ","-").toLowerCase()}`}
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                         onClick={() => setShowCategories(false)}
                       >
@@ -218,8 +218,8 @@ export const Header = () => {
                 </Link>
                 {categories.map((category) => (
                   <Link
-                    key={category.id}
-                    href={`/categories/${category.id}`}
+                    key={category.name.replaceAll(" ","-").toLowerCase()}
+                    href={`/categories/${category.name.replaceAll(" ","-").toLowerCase()}`}
                     className="block py-2 text-base text-gray-700 hover:text-gray-900 transition-colors"
                     onClick={() => setMobileMenuOpen(false)}
                   >

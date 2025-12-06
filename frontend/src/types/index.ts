@@ -81,7 +81,7 @@ export interface ProductFilters {
   page?: number;
   limit?: number;
   search?: string;
-  category_id?: number;
+  category_slug?: string;
   brand_id?: number;
   min_price?: number;
   max_price?: number;

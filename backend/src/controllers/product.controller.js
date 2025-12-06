@@ -113,6 +113,25 @@ class ProductController {
     }
   }
 
+  async getProductsByCategory(req, res, next) {
+  try {
+    const { slug } = req.params;
+    const { page = 1, limit = 12 } = req.query;
+    
+    const result = await productService.getProductsByCategory(slug, { 
+      page: parseInt(page), 
+      limit: parseInt(limit) 
+    });
+    
+    return successResponse(res, result, 'Products retrieved successfully');
+  } catch (error) {
+    if (error.message === 'Category not found') {
+      return errorResponse(res, error.message, 404);
+    }
+    next(error);
+  }
+}
+
   /**
    * Get all brands
    */
