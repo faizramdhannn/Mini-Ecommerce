@@ -71,6 +71,13 @@ export const Header = () => {
                 
                 {showCategories && (
                   <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                    <Link
+                      href="/products"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      onClick={() => setShowCategories(false)}
+                    >
+                      All Categories
+                    </Link>
                     {categories.map((category) => (
                       <Link
                         key={category.id}
@@ -202,6 +209,13 @@ export const Header = () => {
               {/* Categories */}
               <div className="border-b pb-2">
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Categories</p>
+                <Link
+                  href="/products"
+                  className="block py-2 text-base text-gray-700 hover:text-gray-900 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  All Categories
+                </Link>
                 {categories.map((category) => (
                   <Link
                     key={category.id}
@@ -254,32 +268,33 @@ export const Header = () => {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 All Products
-                </Link>
-                {/* User Section */}
-          <div className="border-t pt-4 space-y-2">
-            {isAuthenticated ? (
-              <Link
-                href="/profile"
-                className="flex items-center gap-2 py-2 text-base font-medium text-gray-900 hover:text-gray-600 transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <User className="w-5 h-5" />
-                Profile
               </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="block w-full px-4 py-2 bg-black text-white text-center text-sm font-medium rounded-full hover:bg-gray-800 transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Login
-              </Link>
-            )}
+
+              {/* User Section */}
+              <div className="border-t pt-4 space-y-2">
+                {isAuthenticated ? (
+                  <Link
+                    href="/profile"
+                    className="flex items-center gap-2 py-2 text-base font-medium text-gray-900 hover:text-gray-600 transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <User className="w-5 h-5" />
+                    Profile
+                  </Link>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="block w-full px-4 py-2 bg-black text-white text-center text-sm font-medium rounded-full hover:bg-gray-800 transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Login
+                  </Link>
+                )}
+              </div>
+            </nav>
           </div>
-        </nav>
-      </div>
+        </>
+      )}
     </>
-  )}
-</>
-);
+  );
 };

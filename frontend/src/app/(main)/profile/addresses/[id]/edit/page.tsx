@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/lib/store/auth.store';
 import { userService } from '@/lib/services/user.service';
 import toast from 'react-hot-toast';
-import type { UserAddress } from '@/types';
 
 export default function AddressFormPage() {
   const router = useRouter();
@@ -16,7 +15,7 @@ export default function AddressFormPage() {
   const { user, isAuthenticated } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isEdit, setIsEdit] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [formData, setFormData] = useState({
     label: '',
     recipient_name: '',
@@ -34,15 +33,16 @@ export default function AddressFormPage() {
       return;
     }
 
-    // Check if this is edit mode (has id and it's not 'new')
-    if (params.id && params.id !== 'new') {
-      setIsEdit(true);
+    if (params.id) {
       loadAddress();
     }
   }, [isAuthenticated, params.id, router]);
 
   const loadAddress = async () => {
-    if (!user || !params.id || params.id === 'new') return;
+    if (!user || !params.id) {
+      setIsLoadingData(false);
+      return;
+    }
     
     try {
       const addresses = await userService.getUserAddresses(user.id);
@@ -61,31 +61,28 @@ export default function AddressFormPage() {
         });
       } else {
         toast.error('Address not found');
-        router.push('/profile');
+        router.push('/profile?tab=addresses');
       }
     } catch (error) {
       toast.error('Failed to load address');
-      router.push('/profile');
+      router.push('/profile?tab=addresses');
+    } finally {
+      setIsLoadingData(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !params.id) return;
 
     setIsLoading(true);
 
     try {
-      if (isEdit && params.id) {
-        await userService.updateAddress(user.id, Number(params.id), formData);
-        toast.success('Address updated successfully!');
-      } else {
-        await userService.addAddress(user.id, formData);
-        toast.success('Address added successfully!');
-      }
+      await userService.updateAddress(user.id, Number(params.id), formData);
+      toast.success('Address updated successfully!');
       router.push('/profile?tab=addresses');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to save address');
+      toast.error(error.response?.data?.message || 'Failed to update address');
     } finally {
       setIsLoading(false);
     }
@@ -109,19 +106,27 @@ export default function AddressFormPage() {
     }
   };
 
+  if (isLoadingData) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <button
         onClick={() => router.back()}
-        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+        className="flex items-center gap-2 text-white hover:text-gray-400 mb-6"
       >
         <ArrowLeft className="w-5 h-5" />
         Back
       </button>
 
-      <h1 className="text-3xl font-bold mb-8">
-        {isEdit ? 'Edit Address' : 'Add New Address'}
-      </h1>
+      <h1 className="text-3xl font-bold mb-8">Edit Address</h1>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg border p-6">
         <div className="space-y-4">
@@ -131,7 +136,7 @@ export default function AddressFormPage() {
             className="text-black"
             value={formData.label}
             onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-            placeholder="..."
+            placeholder="Home, Office, etc."
           />
 
           <Input
@@ -141,7 +146,7 @@ export default function AddressFormPage() {
             required
             value={formData.recipient_name}
             onChange={(e) => setFormData({ ...formData, recipient_name: e.target.value })}
-            placeholder="..."
+            placeholder="Full name"
           />
 
           <Input
@@ -151,7 +156,7 @@ export default function AddressFormPage() {
             required
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            placeholder="..."
+            placeholder="08xxxxxxxxxx"
           />
 
           <Input
@@ -161,7 +166,7 @@ export default function AddressFormPage() {
             required
             value={formData.address_line}
             onChange={(e) => setFormData({ ...formData, address_line: e.target.value })}
-            placeholder="..."
+            placeholder="Street, building, floor, etc."
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -172,7 +177,7 @@ export default function AddressFormPage() {
               required
               value={formData.city}
               onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              placeholder="..."
+              placeholder="City name"
             />
 
             <Input
@@ -182,7 +187,7 @@ export default function AddressFormPage() {
               required
               value={formData.province}
               onChange={(e) => setFormData({ ...formData, province: e.target.value })}
-              placeholder="..."
+              placeholder="Province name"
             />
           </div>
 
@@ -192,7 +197,7 @@ export default function AddressFormPage() {
             className="text-black"
             value={formData.postal_code}
             onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
-            placeholder="..."
+            placeholder="12345"
           />
 
           <div className="flex items-center gap-2">
@@ -209,26 +214,27 @@ export default function AddressFormPage() {
           </div>
         </div>
 
-        <div className="flex gap-4 mt-6">
+        <div className="flex flex-col sm:flex-row gap-3 mt-6">
           <Button type="submit" isLoading={isLoading} className="flex-1">
-            {isEdit ? 'Update Address' : 'Add Address'}
+            Update Address
           </Button>
           
-          {isEdit && (
-            <Button
-              type="button"
-              variant="danger"
-              onClick={handleDelete}
-              isLoading={isDeleting}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="danger"
+            onClick={handleDelete}
+            isLoading={isDeleting}
+            className="sm:w-auto"
+          >
+            <Trash2 className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Delete</span>
+          </Button>
           
           <Button
             type="button"
             variant="outline"
             onClick={() => router.back()}
+            className="sm:w-auto"
           >
             Cancel
           </Button>
