@@ -9,7 +9,7 @@ import { useAuthStore } from '@/lib/store/auth.store';
 import { userService } from '@/lib/services/user.service';
 import toast from 'react-hot-toast';
 
-export default function AddressFormPage() {
+export default function EditAddressPage() {
   const router = useRouter();
   const params = useParams();
   const { user, isAuthenticated } = useAuthStore();
@@ -51,20 +51,21 @@ export default function AddressFormPage() {
       if (address) {
         setFormData({
           label: address.label || '',
-          recipient_name: address.recipient_name,
-          phone: address.phone,
-          address_line: address.address_line,
-          city: address.city,
-          province: address.province,
+          recipient_name: address.recipient_name || '',
+          phone: address.phone || '',
+          address_line: address.address_line || '',
+          city: address.city || '',
+          province: address.province || '',
           postal_code: address.postal_code || '',
-          is_default: address.is_default,
+          is_default: address.is_default || false,
         });
       } else {
         toast.error('Address not found');
         router.push('/profile?tab=addresses');
       }
-    } catch (error) {
-      toast.error('Failed to load address');
+    } catch (error: any) {
+      console.error('Error loading address:', error);
+      toast.error(error.response?.data?.message || 'Failed to load address');
       router.push('/profile?tab=addresses');
     } finally {
       setIsLoadingData(false);
@@ -128,7 +129,7 @@ export default function AddressFormPage() {
 
       <h1 className="text-3xl font-bold mb-8">Edit Address</h1>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg border p-6">
+      <div className="bg-white rounded-lg border p-6">
         <div className="space-y-4">
           <Input
             label="Address Label (e.g., Home, Office)"
@@ -159,15 +160,19 @@ export default function AddressFormPage() {
             placeholder="08xxxxxxxxxx"
           />
 
-          <Input
-            label="Full Address"
-            type="text"
-            className="text-black"
-            required
-            value={formData.address_line}
-            onChange={(e) => setFormData({ ...formData, address_line: e.target.value })}
-            placeholder="Street, building, floor, etc."
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Full Address
+            </label>
+            <textarea
+              required
+              value={formData.address_line}
+              onChange={(e) => setFormData({ ...formData, address_line: e.target.value })}
+              placeholder="Street, building, floor, etc."
+              rows={3}
+              className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+            />
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
@@ -215,7 +220,12 @@ export default function AddressFormPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 mt-6">
-          <Button type="submit" isLoading={isLoading} className="flex-1">
+          <Button 
+            type="button" 
+            onClick={handleSubmit}
+            isLoading={isLoading} 
+            className="flex-1"
+          >
             Update Address
           </Button>
           
@@ -239,7 +249,7 @@ export default function AddressFormPage() {
             Cancel
           </Button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
