@@ -11,7 +11,7 @@ class ProductService {
       limit = 10, 
       search, 
       category_id,
-      category_slug, // ✅ Tambah filter by category slug
+      category_slug,
       brand_id, 
       min_price, 
       max_price 
@@ -30,18 +30,33 @@ class ProductService {
       where.category_id = category_id;
     }
 
-    // ✅ Filter category by slug
+    // Filter category by slug
     if (category_slug) {
-      const category = await Category.findOne({ where: { slug: category_slug } });
-      if (category) {
-        where.category_id = category.id;
-      } else {
-        // Return empty jika category tidak ditemukan
+      try {
+        const category = await Category.findOne({ 
+          where: { slug: category_slug } 
+        });
+        
+        if (category) {
+          where.category_id = category.id;
+        } else {
+          // Jika category tidak ditemukan, return empty result
+          return {
+            products: [],
+            total: 0,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: 0
+          };
+        }
+      } catch (error) {
+        console.error('Error finding category:', error);
         return {
           products: [],
           total: 0,
           page: parseInt(page),
-          limit: parseInt(limit)
+          limit: parseInt(limit),
+          totalPages: 0
         };
       }
     }
@@ -58,25 +73,30 @@ class ProductService {
       if (max_price) where.price[Op.lte] = max_price;
     }
     
-    const { count, rows } = await Product.findAndCountAll({
-      where,
-      include: [
-        { model: Category, as: 'category' },
-        { model: Brand, as: 'brand' },
-        { model: ProductMedia, as: 'media' }
-      ],
-      limit,
-      offset,
-      order: [['created_at', 'DESC']]
-    });
-    
-    return {
-      products: rows,
-      total: count,
-      page: parseInt(page),
-      limit: parseInt(limit),
-      totalPages: Math.ceil(count / limit) // ✅ Tambah totalPages
-    };
+    try {
+      const { count, rows } = await Product.findAndCountAll({
+        where,
+        include: [
+          { model: Category, as: 'category' },
+          { model: Brand, as: 'brand' },
+          { model: ProductMedia, as: 'media' }
+        ],
+        limit: parseInt(limit),
+        offset,
+        order: [['created_at', 'DESC']]
+      });
+      
+      return {
+        products: rows,
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(count / limit)
+      };
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      throw error;
+    }
   }
 
   /**
@@ -99,7 +119,7 @@ class ProductService {
   }
 
   /**
-   * ✅ Get product by slug
+   * Get product by slug
    */
   async getProductBySlug(slug) {
     const product = await Product.findOne({
@@ -119,7 +139,7 @@ class ProductService {
   }
 
   /**
-   * ✅ Get products by category slug
+   * Get products by category slug
    */
   async getProductsByCategory(categorySlug, options = {}) {
     const { page = 1, limit = 12 } = options;
@@ -142,7 +162,7 @@ class ProductService {
         { model: Brand, as: 'brand' },
         { model: ProductMedia, as: 'media' }
       ],
-      limit,
+      limit: parseInt(limit),
       offset,
       order: [['created_at', 'DESC']]
     });
@@ -168,7 +188,6 @@ class ProductService {
    */
   async createProduct(productData) {
     const product = await Product.create(productData);
-    
     return await this.getProductById(product.id);
   }
 
@@ -183,7 +202,6 @@ class ProductService {
     }
     
     await product.update(productData);
-    
     return await this.getProductById(productId);
   }
 
@@ -198,7 +216,6 @@ class ProductService {
     }
     
     await product.destroy();
-    
     return true;
   }
 
@@ -212,7 +229,7 @@ class ProductService {
   }
 
   /**
-   * ✅ Get category by slug
+   * Get category by slug
    */
   async getCategoryBySlug(slug) {
     const category = await Category.findOne({
@@ -236,7 +253,7 @@ class ProductService {
   }
 
   /**
-   * ✅ Get brand by slug
+   * Get brand by slug
    */
   async getBrandBySlug(slug) {
     const brand = await Brand.findOne({

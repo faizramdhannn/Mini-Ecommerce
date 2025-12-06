@@ -20,7 +20,7 @@ const Category = sequelize.define('Category', {
   }
 }, {
   tableName: 'categories',
-  timestamps: true,
+  timestamps: false, // ← PENTING: Disable timestamps
   hooks: {
     beforeValidate: (category) => {
       if (category.name && !category.slug) {

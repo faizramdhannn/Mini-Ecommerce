@@ -20,7 +20,7 @@ const Brand = sequelize.define('Brand', {
   }
 }, {
   tableName: 'brands',
-  timestamps: true,
+  timestamps: false, // ← PENTING: Disable timestamps
   hooks: {
     beforeValidate: (brand) => {
       if (brand.name && !brand.slug) {
