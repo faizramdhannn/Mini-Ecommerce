@@ -3,29 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { productService } from "@/lib/services/product.service";
-
-// Placeholder components
-const ProductGrid = ({ products }: any) => (
-  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-    {products.map((product: any) => (
-      <div key={product.id} className="bg-white rounded-lg border p-4">
-        <div className="aspect-square bg-gray-200 rounded mb-3" />
-        <h3 className="font-medium text-sm line-clamp-2 mb-2">{product.name}</h3>
-        <p className="text-lg font-bold">
-          {new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0,
-          }).format(product.price)}
-        </p>
-      </div>
-    ))}
-  </div>
-);
+import { ProductCard } from "@/components/product/ProductCard";
 
 const Spinner = () => (
   <div className="flex items-center justify-center py-12">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
   </div>
 );
 
@@ -34,17 +16,17 @@ const Pagination = ({ currentPage, totalPages, onPageChange }: any) => (
     <button
       onClick={() => onPageChange(currentPage - 1)}
       disabled={currentPage === 1}
-      className="px-4 py-2 border rounded disabled:opacity-50"
+      className="px-4 py-2 bg-white text-black rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors"
     >
       Previous
     </button>
-    <span className="px-4 py-2">
+    <span className="px-4 py-2 text-white">
       Page {currentPage} of {totalPages}
     </span>
     <button
       onClick={() => onPageChange(currentPage + 1)}
       disabled={currentPage >= totalPages}
-      className="px-4 py-2 border rounded disabled:opacity-50"
+      className="px-4 py-2 bg-white text-black rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors"
     >
       Next
     </button>
@@ -56,6 +38,7 @@ export default function CategoryPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [category, setCategory] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
     totalPages: 1,
@@ -71,28 +54,37 @@ export default function CategoryPage() {
 
   const loadProducts = async (page: number, slug: string) => {
     setIsLoading(true);
+    setError(null);
+    
     try {
-      console.log('Loading products for category:', slug);
+      console.log('Loading products for category:', slug, 'page:', page);
       
       const response = await productService.getProductsByCategory(slug, {
         page,
         limit: 12,
       });
       
-      console.log('Response:', response);
+      console.log('Response received:', response);
       
-      // Handle response structure
-      if (response.data) {
+      // Handle response structure dari backend
+      if (response && response.data) {
         setProducts(response.data);
         setCategory(response.category);
-        setPagination({
-          page: response.pagination.page,
-          totalPages: response.pagination.totalPages,
-          total: response.pagination.total,
-        });
+        
+        if (response.pagination) {
+          setPagination({
+            page: response.pagination.page,
+            totalPages: response.pagination.totalPages,
+            total: response.pagination.total,
+          });
+        }
+      } else {
+        setError('Invalid response format');
+        setProducts([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load products:', error);
+      setError(error.response?.data?.message || 'Failed to load products');
       setProducts([]);
     } finally {
       setIsLoading(false);
@@ -111,6 +103,25 @@ export default function CategoryPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
         <Spinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">{error}</p>
+          <button
+            onClick={() => {
+              const slug = params.slug as string;
+              if (slug) loadProducts(1, slug);
+            }}
+            className="px-4 py-2 bg-white text-black rounded hover:bg-gray-200 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
@@ -137,7 +148,11 @@ export default function CategoryPage() {
           </div>
         ) : (
           <>
-            <ProductGrid products={products} />
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
 
             {pagination.totalPages > 1 && (
               <Pagination

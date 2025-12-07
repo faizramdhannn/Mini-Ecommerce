@@ -66,6 +66,9 @@ class ProductService {
       );
       
       console.log('Category products response:', response.data);
+      
+      // Response sudah dalam format yang benar dari backend
+      // { success: true, message: '...', data: [...], pagination: {...}, category: {...} }
       return response.data;
     } catch (error) {
       console.error('Error fetching products by category:', error);

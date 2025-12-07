@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/product.controller');
-const {  optionalAuth } = require('../middlewares/auth');
+const { optionalAuth } = require('../middlewares/auth');
 const { body } = require('express-validator');
 const validate = require('../middlewares/validate');
 
@@ -17,12 +17,14 @@ const productValidation = [
 router.get('/', optionalAuth, productController.getAllProducts);
 router.get('/categories', productController.getAllCategories);
 router.get('/brands', productController.getAllBrands);
-router.get('/:id', optionalAuth, productController.getProductById);
+
+// IMPORTANT: Route spesifik harus sebelum route dengan parameter
 router.get('/category/:slug', productController.getProductsByCategory);
+router.get('/:id', optionalAuth, productController.getProductById);
 
 // Protected routes (auth required)
-router.post('/',  productValidation, productController.createProduct);
-router.put('/:id',  productValidation, productController.updateProduct);
-router.delete('/:id',  productController.deleteProduct);
+router.post('/', productValidation, productController.createProduct);
+router.put('/:id', productValidation, productController.updateProduct);
+router.delete('/:id', productController.deleteProduct);
 
 module.exports = router;

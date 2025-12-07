@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, ShoppingBag, User, Menu, X, ChevronDown, ReplaceAll } from 'lucide-react';
+import { Search, ShoppingBag, User, Menu, X, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '@/lib/store/auth.store';
 import { useCartStore } from '@/lib/store/cart.store';
 import { useEffect, useState } from 'react';
@@ -46,6 +46,11 @@ export const Header = () => {
 
   if (!mounted) return null;
 
+  // Helper function untuk generate slug
+  const getCategorySlug = (category: Category) => {
+    return category.slug || category.name.toLowerCase().replace(/\s+/g, '-');
+  };
+
   return (
     <>
       <header className="sticky top-0 z-50 bg-black shadow-sm">
@@ -80,8 +85,8 @@ export const Header = () => {
                     </Link>
                     {categories.map((category) => (
                       <Link
-                        key={category.name.replaceAll(" ","-").toLowerCase()}
-                        href={`/categories/${category.name.replaceAll(" ","-").toLowerCase()}`}
+                        key={category.id}
+                        href={`/categories/${getCategorySlug(category)}`}
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                         onClick={() => setShowCategories(false)}
                       >
@@ -218,8 +223,8 @@ export const Header = () => {
                 </Link>
                 {categories.map((category) => (
                   <Link
-                    key={category.name.replaceAll(" ","-").toLowerCase()}
-                    href={`/categories/${category.name.replaceAll(" ","-").toLowerCase()}`}
+                    key={category.id}
+                    href={`/categories/${getCategorySlug(category)}`}
                     className="block py-2 text-base text-gray-700 hover:text-gray-900 transition-colors"
                     onClick={() => setMobileMenuOpen(false)}
                   >

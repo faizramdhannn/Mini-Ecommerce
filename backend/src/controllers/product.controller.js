@@ -12,6 +12,7 @@ class ProductController {
         limit: req.query.limit || 10,
         search: req.query.search,
         category_id: req.query.category_id,
+        category_slug: req.query.category_slug,
         brand_id: req.query.brand_id,
         min_price: req.query.min_price,
         max_price: req.query.max_price
@@ -113,24 +114,32 @@ class ProductController {
     }
   }
 
+  /**
+   * Get products by category slug
+   */
   async getProductsByCategory(req, res, next) {
-  try {
-    const { slug } = req.params;
-    const { page = 1, limit = 12 } = req.query;
-    
-    const result = await productService.getProductsByCategory(slug, { 
-      page: parseInt(page), 
-      limit: parseInt(limit) 
-    });
-    
-    return successResponse(res, result, 'Products retrieved successfully');
-  } catch (error) {
-    if (error.message === 'Category not found') {
-      return errorResponse(res, error.message, 404);
+    try {
+      const { slug } = req.params;
+      const { page = 1, limit = 12 } = req.query;
+      
+      const result = await productService.getProductsByCategory(slug, { 
+        page: parseInt(page), 
+        limit: parseInt(limit) 
+      });
+      
+      // Return dengan format yang konsisten
+      return res.status(200).json({
+        success: true,
+        message: 'Products retrieved successfully',
+        ...result
+      });
+    } catch (error) {
+      if (error.message === 'Category not found') {
+        return errorResponse(res, error.message, 404);
+      }
+      next(error);
     }
-    next(error);
   }
-}
 
   /**
    * Get all brands
