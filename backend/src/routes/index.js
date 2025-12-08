@@ -1,3 +1,4 @@
+// backend/src/routes/index.js - FINAL VERSION
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
@@ -8,13 +9,13 @@ const { authenticate } = require('../middlewares/auth');
 // Import route modules
 const userRoutes = require('./user.routes');
 const productRoutes = require('./product.routes');
+const categoryRoutes = require('./category.routes');
+const brandRoutes = require('./brand.routes');
 const orderRoutes = require('./order.routes');
 const cartRoutes = require('./cart.routes');
-const paymentRoutes = require('./payment.routes');
-const shipmentRoutes = require('./shipment.routes');
-const searchRoutes = require('./search.routes'); // NEW
+const searchRoutes = require('./search.routes');
 
-// Auth validation rules
+// Auth validation
 const registerValidation = [
   body('nickname').notEmpty().withMessage('Nickname is required'),
   body('email').isEmail().withMessage('Valid email is required'),
@@ -28,40 +29,17 @@ const loginValidation = [
   validate
 ];
 
-const updatePasswordValidation = [
-  body('old_password').notEmpty().withMessage('Old password is required'),
-  body('new_password').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
-  validate
-];
-
-// Root route
+// Root
 router.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'E-Commerce API',
-    version: '1.0.0',
+    message: 'E-Commerce API v1.0.0',
     endpoints: {
-      auth: {
-        register: 'POST /api/auth/register',
-        login: 'POST /api/auth/login',
-        logout: 'POST /api/auth/logout',
-        profile: 'GET /api/auth/profile',
-        updatePassword: 'PUT /api/auth/password'
-      },
-      users: 'GET /api/users',
-      products: {
-        list: 'GET /api/products',
-        bySlug: 'GET /api/products/:slug',
-        categories: 'GET /api/categories',
-        categoryProducts: 'GET /api/categories/:slug/products',
-        brands: 'GET /api/brands',
-        brandProducts: 'GET /api/brands/:slug/products'
-      },
+      auth: 'POST /api/auth/login',
+      products: 'GET /api/products',
       search: 'GET /api/search?q=keyword',
-      orders: 'GET /api/orders',
-      cart: 'GET /api/cart',
-      payments: 'GET /api/payments',
-      shipments: 'GET /api/shipments'
+      categories: 'GET /api/categories/:slug/products',
+      brands: 'GET /api/brands/:slug/products'
     }
   });
 });
@@ -71,17 +49,14 @@ router.post('/auth/register', registerValidation, authController.register);
 router.post('/auth/login', loginValidation, authController.login);
 router.post('/auth/logout', authenticate, authController.logout);
 router.get('/auth/profile', authenticate, authController.getProfile);
-router.put('/auth/password', authenticate, updatePasswordValidation, authController.updatePassword);
 
-// Module routes
+// Module routes - IMPORTANT: Order matters!
+router.use('/search', searchRoutes);      // 1. Search first
+router.use('/categories', categoryRoutes); // 2. Category routes
+router.use('/brands', brandRoutes);        // 3. Brand routes
+router.use('/products', productRoutes);    // 4. Products (includes /products/categories and /products/brands)
 router.use('/users', userRoutes);
-router.use('/products', productRoutes); // Includes /categories and /brands
-router.use('/categories', productRoutes); // Route untuk categories
-router.use('/brands', productRoutes); // Route untuk brands
-router.use('/search', searchRoutes); // NEW - Search route
 router.use('/orders', orderRoutes);
 router.use('/cart', cartRoutes);
-router.use('/payments', paymentRoutes);
-router.use('/shipments', shipmentRoutes);
 
 module.exports = router;

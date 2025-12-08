@@ -19,6 +19,12 @@ export const ProductCard = ({ product }: ProductCardProps) => {
   const { isAuthenticated } = useAuthStore();
   const router = useRouter();
 
+  // Generate slug dari product name jika tidak ada slug
+  const getProductSlug = () => {
+    if (product.slug) return product.slug;
+    return product.name.toLowerCase().replace(/\s+/g, '-');
+  };
+
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     
@@ -39,9 +45,9 @@ export const ProductCard = ({ product }: ProductCardProps) => {
   const imageUrl = product.media?.[0]?.url || '/images/placeholder.png';
 
   return (
-    <Link href={`/products/${product.id}`} className="group block h-full">
+    <Link href={`/products/${getProductSlug()}`} className="group block h-full">
       <div className="bg-white rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg border border-gray-100 h-full flex flex-col">
-        {/* Image - Fixed Aspect Ratio */}
+        {/* Image */}
         <div className="relative aspect-square overflow-hidden bg-gray-100">
           <Image
             src={imageUrl}
@@ -56,9 +62,9 @@ export const ProductCard = ({ product }: ProductCardProps) => {
           )}
         </div>
 
-        {/* Info - Fixed Height */}
+        {/* Info */}
         <div className="p-3 sm:p-4 flex flex-col flex-1">
-          {/* Category - Fixed Height */}
+          {/* Category */}
           <div className="h-5 mb-1">
             {product.category && (
               <p className="text-xs text-gray-500 truncate">
@@ -67,12 +73,12 @@ export const ProductCard = ({ product }: ProductCardProps) => {
             )}
           </div>
 
-          {/* Product Name - Exactly 2 Lines */}
+          {/* Product Name */}
           <h3 className="font-medium text-gray-900 group-hover:text-gray-600 transition-colors text-sm sm:text-base mb-2 line-clamp-2 h-10 sm:h-12">
             {product.name}
           </h3>
 
-          {/* Price & Cart - Fixed at Bottom */}
+          {/* Price & Cart */}
           <div className="flex items-center justify-between mt-auto pt-2">
             <span className="text-base sm:text-lg font-bold text-gray-900">
               {formatCurrency(product.price)}

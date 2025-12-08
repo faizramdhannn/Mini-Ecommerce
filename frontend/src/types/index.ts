@@ -1,3 +1,5 @@
+// frontend/src/types/index.ts
+
 // User Types
 export interface User {
   id: number;
@@ -7,6 +9,7 @@ export interface User {
   phone?: string;
   profile_image?: string;
   birthday?: string;
+  role?: 'user' | 'admin';
   created_at?: string;
   updated_at?: string;
 }
@@ -45,13 +48,13 @@ export interface AuthResponse {
 export interface Category {
   id: number;
   name: string;
-  slug?: string;
+  slug: string;  // ✅ Made required
 }
 
 export interface Brand {
   id: number;
   name: string;
-  slug?: string;
+  slug: string;  // ✅ Made required
 }
 
 export interface ProductMedia {
@@ -64,6 +67,7 @@ export interface ProductMedia {
 export interface Product {
   id: number;
   name: string;
+  slug: string;  // ✅ Made required
   description?: string;
   brand_id?: number;
   category_id?: number;

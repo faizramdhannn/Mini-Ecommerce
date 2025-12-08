@@ -8,42 +8,31 @@ export const API_ENDPOINTS = {
     UPDATE_PASSWORD: '/auth/password',
   },
   
-  // Products - NEW STRUCTURE
+  // Products
   PRODUCTS: {
-    // All products
     LIST: '/products',
-    // Single product by slug
-    DETAIL: (slug: string) => `/products?${slug}`,
-    // Create/Update/Delete (admin)
+    BY_SLUG: (slug: string) => `/products/${slug}`,
     CREATE: '/products',
     UPDATE: (id: number) => `/products/${id}`,
     DELETE: (id: number) => `/products/${id}`,
   },
   
-  // Categories - NEW STRUCTURE
+  // Categories
   CATEGORIES: {
-    // All categories
-    LIST: '/categories',
-    // Single category by slug
-    DETAIL: (slug: string) => `/categories?${slug}`,
-    // Products by category slug
+    LIST: '/products/categories',
+    BY_SLUG: (slug: string) => `/categories/${slug}`,
     PRODUCTS: (slug: string) => `/categories/${slug}/products`,
   },
   
-  // Brands - NEW STRUCTURE
+  // Brands
   BRANDS: {
-    // All brands
-    LIST: '/brands',
-    // Single brand by slug
-    DETAIL: (slug: string) => `/brands?${slug}`,
-    // Products by brand slug
+    LIST: '/products/brands',
+    BY_SLUG: (slug: string) => `/brands/${slug}`,
     PRODUCTS: (slug: string) => `/brands/${slug}/products`,
   },
   
   // Search
-  SEARCH: {
-    PRODUCTS: '/search',
-  },
+  SEARCH: '/search',
   
   // Cart
   CART: {
@@ -77,24 +66,5 @@ export const API_ENDPOINTS = {
     ADD_ADDRESS: (id: number) => `/users/${id}/addresses`,
     UPDATE_ADDRESS: (id: number, addressId: number) => `/users/${id}/addresses/${addressId}`,
     DELETE_ADDRESS: (id: number, addressId: number) => `/users/${id}/addresses/${addressId}`,
-  },
-  
-  // Payments
-  PAYMENTS: {
-    LIST: '/payments',
-    DETAIL: (id: number) => `/payments/${id}`,
-    CREATE: '/payments',
-    UPDATE: (id: number) => `/payments/${id}`,
-    DELETE: (id: number) => `/payments/${id}`,
-  },
-  
-  // Shipments
-  SHIPMENTS: {
-    LIST: '/shipments',
-    DETAIL: (id: number) => `/shipments/${id}`,
-    CREATE: '/shipments',
-    UPDATE: (id: number) => `/shipments/${id}`,
-    DELETE: (id: number) => `/shipments/${id}`,
-    TRACK: (trackingNumber: string) => `/shipments/track/${trackingNumber}`,
   },
 };
