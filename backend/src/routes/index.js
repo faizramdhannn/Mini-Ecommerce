@@ -12,6 +12,7 @@ const orderRoutes = require('./order.routes');
 const cartRoutes = require('./cart.routes');
 const paymentRoutes = require('./payment.routes');
 const shipmentRoutes = require('./shipment.routes');
+const searchRoutes = require('./search.routes'); // NEW
 
 // Auth validation rules
 const registerValidation = [
@@ -48,7 +49,15 @@ router.get('/', (req, res) => {
         updatePassword: 'PUT /api/auth/password'
       },
       users: 'GET /api/users',
-      products: 'GET /api/products',
+      products: {
+        list: 'GET /api/products',
+        bySlug: 'GET /api/products/:slug',
+        categories: 'GET /api/categories',
+        categoryProducts: 'GET /api/categories/:slug/products',
+        brands: 'GET /api/brands',
+        brandProducts: 'GET /api/brands/:slug/products'
+      },
+      search: 'GET /api/search?q=keyword',
       orders: 'GET /api/orders',
       cart: 'GET /api/cart',
       payments: 'GET /api/payments',
@@ -66,7 +75,10 @@ router.put('/auth/password', authenticate, updatePasswordValidation, authControl
 
 // Module routes
 router.use('/users', userRoutes);
-router.use('/products', productRoutes);
+router.use('/products', productRoutes); // Includes /categories and /brands
+router.use('/categories', productRoutes); // Route untuk categories
+router.use('/brands', productRoutes); // Route untuk brands
+router.use('/search', searchRoutes); // NEW - Search route
 router.use('/orders', orderRoutes);
 router.use('/cart', cartRoutes);
 router.use('/payments', paymentRoutes);

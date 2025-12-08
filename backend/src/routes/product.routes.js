@@ -13,18 +13,35 @@ const productValidation = [
   validate
 ];
 
-// Public routes (no auth required)
-router.get('/', optionalAuth, productController.getAllProducts);
+// ===== PUBLIC ROUTES (no auth required) =====
+
+// Get all categories - NEW
 router.get('/categories', productController.getAllCategories);
+
+// Get all brands - NEW
 router.get('/brands', productController.getAllBrands);
 
-// IMPORTANT: Route spesifik harus sebelum route dengan parameter
-router.get('/category/:slug', productController.getProductsByCategory);
-router.get('/:id', optionalAuth, productController.getProductById);
+// Get products by category slug - NEW
+router.get('/categories/:slug/products', productController.getProductsByCategory);
 
-// Protected routes (auth required)
+// Get products by brand slug - NEW
+router.get('/brands/:slug/products', productController.getProductsByBrand);
+
+// Get all products with filters
+router.get('/', optionalAuth, productController.getAllProducts);
+
+// Get product by SLUG (bukan ID) - IMPORTANT: After other specific routes
+router.get('/:slug', optionalAuth, productController.getProductBySlug);
+
+// ===== PROTECTED ROUTES (auth required) =====
+
+// Create product (admin only)
 router.post('/', productValidation, productController.createProduct);
+
+// Update product (admin only)
 router.put('/:id', productValidation, productController.updateProduct);
+
+// Delete product (admin only)
 router.delete('/:id', productController.deleteProduct);
 
 module.exports = router;

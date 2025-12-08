@@ -40,7 +40,6 @@ class ProductService {
         if (category) {
           where.category_id = category.id;
         } else {
-          // Jika category tidak ditemukan, return empty result
           return {
             products: [],
             total: 0,
@@ -119,7 +118,7 @@ class ProductService {
   }
 
   /**
-   * Get product by slug
+   * Get product by slug - NEW METHOD
    */
   async getProductBySlug(slug) {
     const product = await Product.findOne({
@@ -139,7 +138,7 @@ class ProductService {
   }
 
   /**
-   * Get products by category slug
+   * Get products by category slug - NEW METHOD
    */
   async getProductsByCategory(categorySlug, options = {}) {
     const { page = 1, limit = 12 } = options;
@@ -168,7 +167,7 @@ class ProductService {
     });
 
     return {
-      data: rows,
+      products: rows,
       pagination: {
         total: count,
         page: parseInt(page),
@@ -179,6 +178,51 @@ class ProductService {
         id: category.id,
         name: category.name,
         slug: category.slug
+      }
+    };
+  }
+
+  /**
+   * Get products by brand slug - NEW METHOD
+   */
+  async getProductsByBrand(brandSlug, options = {}) {
+    const { page = 1, limit = 12 } = options;
+    
+    // Cari brand dulu
+    const brand = await Brand.findOne({
+      where: { slug: brandSlug }
+    });
+
+    if (!brand) {
+      throw new Error('Brand not found');
+    }
+
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await Product.findAndCountAll({
+      where: { brand_id: brand.id },
+      include: [
+        { model: Category, as: 'category' },
+        { model: Brand, as: 'brand' },
+        { model: ProductMedia, as: 'media' }
+      ],
+      limit: parseInt(limit),
+      offset,
+      order: [['created_at', 'DESC']]
+    });
+
+    return {
+      products: rows,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        totalPages: Math.ceil(count / limit),
+        limit: parseInt(limit)
+      },
+      brand: {
+        id: brand.id,
+        name: brand.name,
+        slug: brand.slug
       }
     };
   }
