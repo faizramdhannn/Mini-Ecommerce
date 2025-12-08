@@ -8,15 +8,41 @@ export const API_ENDPOINTS = {
     UPDATE_PASSWORD: '/auth/password',
   },
   
-  // Products
+  // Products - NEW STRUCTURE
   PRODUCTS: {
+    // All products
     LIST: '/products',
-    DETAIL: (id: number) => `/products/${id}`,
+    // Single product by slug
+    DETAIL: (slug: string) => `/products?${slug}`,
+    // Create/Update/Delete (admin)
     CREATE: '/products',
     UPDATE: (id: number) => `/products/${id}`,
     DELETE: (id: number) => `/products/${id}`,
-    CATEGORIES: '/products/categories',
-    BRANDS: '/products/brands',
+  },
+  
+  // Categories - NEW STRUCTURE
+  CATEGORIES: {
+    // All categories
+    LIST: '/categories',
+    // Single category by slug
+    DETAIL: (slug: string) => `/categories?${slug}`,
+    // Products by category slug
+    PRODUCTS: (slug: string) => `/categories/${slug}/products`,
+  },
+  
+  // Brands - NEW STRUCTURE
+  BRANDS: {
+    // All brands
+    LIST: '/brands',
+    // Single brand by slug
+    DETAIL: (slug: string) => `/brands?${slug}`,
+    // Products by brand slug
+    PRODUCTS: (slug: string) => `/brands/${slug}/products`,
+  },
+  
+  // Search
+  SEARCH: {
+    PRODUCTS: '/search',
   },
   
   // Cart

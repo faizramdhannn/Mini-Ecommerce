@@ -1,3 +1,4 @@
+// frontend/src/app/(main)/product/[slug]/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -26,16 +27,17 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     loadProduct();
-  }, [params.id]);
+  }, [params.slug]);
 
   const loadProduct = async () => {
     try {
-      const data = await productService.getProduct(Number(params.id));
+      const slug = params.slug as string;
+      const data = await productService.getProductBySlug(slug);
       setProduct(data);
     } catch (error) {
       console.error('Failed to load product:', error);
       toast.error('Product not found');
-      router.push('/products');
+      router.push('/collections/all-product');
     } finally {
       setIsLoading(false);
     }
