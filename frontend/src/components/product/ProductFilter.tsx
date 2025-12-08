@@ -63,11 +63,11 @@ export const ProductFilter = ({ onFilterChange }: ProductFilterProps) => {
             <span className="text-sm">All Categories</span>
           </label>
           {categories.map((category) => (
-            <label key={category.name} className="flex items-center space-x-2 cursor-pointer">
+            <label key={category.id} className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="radio"
                 name="category"
-                onChange={() => handleFilterChange('category_slug', category.name)}
+                onChange={() => handleFilterChange('category_slug', category.slug)}
                 className="w-4 h-4"
               />
               <span className="text-sm">{category.name}</span>
@@ -111,13 +111,13 @@ export const ProductFilter = ({ onFilterChange }: ProductFilterProps) => {
             type="number"
             placeholder="Min price"
             className="text-black" 
-            onChange={(e) => handleFilterChange('min_price', e.target.value)}
+            onChange={(e) => handleFilterChange('min_price', e.target.value ? parseFloat(e.target.value) : undefined)}
           />
           <Input
             type="number"
             placeholder="Max price"
             className="text-black" 
-            onChange={(e) => handleFilterChange('max_price', e.target.value)}
+            onChange={(e) => handleFilterChange('max_price', e.target.value ? parseFloat(e.target.value) : undefined)}
           />
         </div>
       </div>

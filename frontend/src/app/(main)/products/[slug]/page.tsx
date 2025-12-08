@@ -1,4 +1,3 @@
-// frontend/src/app/(main)/product/[slug]/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';

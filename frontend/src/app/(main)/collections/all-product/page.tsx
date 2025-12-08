@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { ProductGrid } from '@/components/product/ProductGrid';
 import { ProductFilter } from '@/components/product/ProductFilter';
 import { Pagination } from '@/components/ui/Pagination';
@@ -11,6 +11,7 @@ import type { Product, ProductFilters } from '@/types';
 
 export default function AllProductsPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState<ProductFilters>({ page: 1, limit: 12 });
@@ -30,7 +31,6 @@ export default function AllProductsPage() {
     const brand = searchParams.get('brand');
     const minPrice = searchParams.get('min_price');
     const maxPrice = searchParams.get('max_price');
-    const sort = searchParams.get('sort');
     
     if (page) urlFilters.page = parseInt(page);
     if (search) urlFilters.search = search;
@@ -73,14 +73,14 @@ export default function AllProductsPage() {
     if (newFilters.min_price) params.set('min_price', newFilters.min_price.toString());
     if (newFilters.max_price) params.set('max_price', newFilters.max_price.toString());
     
-    window.history.pushState(null, '', `?${params.toString()}`);
+    router.push(`/collections/all-product?${params.toString()}`);
     setFilters({ ...newFilters, page: 1, limit: 12 });
   };
 
   const handlePageChange = (page: number) => {
     const params = new URLSearchParams(window.location.search);
     params.set('page', page.toString());
-    window.history.pushState(null, '', `?${params.toString()}`);
+    router.push(`/collections/all-product?${params.toString()}`);
     
     setFilters({ ...filters, page });
     window.scrollTo({ top: 0, behavior: 'smooth' });

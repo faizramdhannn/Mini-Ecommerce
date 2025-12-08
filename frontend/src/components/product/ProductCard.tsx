@@ -19,9 +19,11 @@ export const ProductCard = ({ product }: ProductCardProps) => {
   const { isAuthenticated } = useAuthStore();
   const router = useRouter();
 
-  // Generate slug dari product name jika tidak ada slug
+  // Generate slug dari product
   const getProductSlug = () => {
+    // Pastikan menggunakan slug dari product jika ada
     if (product.slug) return product.slug;
+    // Fallback ke generate dari name
     return product.name.toLowerCase().replace(/\s+/g, '-');
   };
 

@@ -77,7 +77,7 @@ export const Header = () => {
                 {showCategories && (
                   <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
                     <Link
-                      href="/products"
+                      href="/collections/all-product"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                       onClick={() => setShowCategories(false)}
                     >
@@ -86,7 +86,7 @@ export const Header = () => {
                     {categories.map((category) => (
                       <Link
                         key={category.id}
-                        href={`/categories/${getCategorySlug(category)}`}
+                        href={`/collections/${getCategorySlug(category)}`}
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                         onClick={() => setShowCategories(false)}
                       >
@@ -145,7 +145,7 @@ export const Header = () => {
 
               {/* Products */}
               <Link
-                href="/products"
+                href="/collections/all-product"
                 className="px-3 lg:px-4 py-2 text-sm lg:text-base font-medium text-white hover:text-gray-300 transition-colors"
               >
                 All Products
@@ -175,7 +175,7 @@ export const Header = () => {
               {/* User */}
               {isAuthenticated ? (
                 <Link
-                  href="/profile"
+                  href="/account"
                   className="hidden sm:block p-2 text-white hover:text-gray-300 rounded-full transition-colors"
                 >
                   <User className="w-5 h-5" />
@@ -215,7 +215,7 @@ export const Header = () => {
               <div className="border-b pb-2">
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Categories</p>
                 <Link
-                  href="/products"
+                  href="/collections/all-product"
                   className="block py-2 text-base text-gray-700 hover:text-gray-900 transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
@@ -224,7 +224,7 @@ export const Header = () => {
                 {categories.map((category) => (
                   <Link
                     key={category.id}
-                    href={`/categories/${getCategorySlug(category)}`}
+                    href={`/collections/${getCategorySlug(category)}`}
                     className="block py-2 text-base text-gray-700 hover:text-gray-900 transition-colors"
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -268,7 +268,7 @@ export const Header = () => {
                 Corporate Order
               </Link>
               <Link
-                href="/products"
+                href="/collections/all-product"
                 className="block py-2 text-base font-medium text-gray-900 hover:text-gray-600 transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
@@ -279,7 +279,7 @@ export const Header = () => {
               <div className="border-t pt-4 space-y-2">
                 {isAuthenticated ? (
                   <Link
-                    href="/profile"
+                    href="/account"
                     className="flex items-center gap-2 py-2 text-base font-medium text-gray-900 hover:text-gray-600 transition-colors"
                     onClick={() => setMobileMenuOpen(false)}
                   >
