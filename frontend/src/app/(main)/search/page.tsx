@@ -113,8 +113,8 @@ export default function SearchPage() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Search Bar */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-4">Search Products</h1>
-        <form onSubmit={handleSearch} className="max-w-2xl">
+        <h1 className="text-3xl text-center font-bold mb-4">Search Products</h1>
+        <form onSubmit={handleSearch} className="max-w-full">
           <div className="relative">
             <Input
               type="text"
@@ -147,14 +147,7 @@ export default function SearchPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Filters Sidebar */}
-        <aside className="lg:col-span-1">
-          <div className="sticky top-24">
-            <h3 className="font-semibold mb-4">Filter Results</h3>
-            <ProductFilter onFilterChange={handleFilterChange} />
-          </div>
-        </aside>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
         {/* Products Grid */}
         <div className="lg:col-span-3">

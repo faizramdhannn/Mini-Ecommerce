@@ -39,16 +39,6 @@ export const ProductFilter = ({ onFilterChange }: ProductFilterProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Search */}
-      <div>
-        <h3 className="font-semibold mb-3">Search</h3>
-        <Input
-          type="text"
-          placeholder="Search products..."
-          onChange={(e) => handleFilterChange('search', e.target.value)}
-        />
-      </div>
-
       {/* Categories */}
       <div>
         <h3 className="font-semibold mb-3">Categories</h3>
