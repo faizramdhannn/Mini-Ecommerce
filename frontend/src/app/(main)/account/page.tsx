@@ -3,19 +3,22 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { User, MapPin, ShoppingBag, LogOut, Edit, Plus, Home, Package, Pencil, Trash2 } from 'lucide-react';
+import { User, MapPin, ShoppingBag, LogOut, Edit, Plus, Home, Package, Pencil, Trash2, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
+import { VoucherCard } from '@/components/voucher/VoucherCard';
 import { useAuthStore } from '@/lib/store/auth.store';
 import { orderService } from '@/lib/services/order.service';
+import { voucherService } from '@/lib/services/voucher.service';
 import { formatDate, formatCurrency } from '@/lib/utils/format';
 import { ORDER_STATUS } from '@/lib/utils/constants';
 import { userService } from '@/lib/services/user.service';
 import type { UserAddress, Order } from '@/types';
+import type { Voucher } from '@/types/voucher';
 import toast from 'react-hot-toast';
 
-type TabType = 'info' | 'addresses' | 'orders';
+type TabType = 'info' | 'addresses' | 'orders' | 'vouchers';
 
 export default function AccountPage() {
   const router = useRouter();
@@ -24,8 +27,10 @@ export default function AccountPage() {
   const [activeTab, setActiveTab] = useState<TabType>('info');
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
   const [deletingAddressId, setDeletingAddressId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -35,7 +40,7 @@ export default function AccountPage() {
     }
 
     const tab = searchParams.get('tab');
-    if (tab && ['info', 'addresses', 'orders'].includes(tab)) {
+    if (tab && ['info', 'addresses', 'orders', 'vouchers'].includes(tab)) {
       setActiveTab(tab as TabType);
     }
   }, [isAuthenticated, router, searchParams]);
@@ -45,6 +50,8 @@ export default function AccountPage() {
       loadAddresses();
     } else if (activeTab === 'orders' && orders.length === 0) {
       loadOrders();
+    } else if (activeTab === 'vouchers' && vouchers.length === 0) {
+      loadVouchers();
     }
   }, [activeTab]);
 
@@ -72,6 +79,19 @@ export default function AccountPage() {
       setOrders([]);
     } finally {
       setIsLoadingOrders(false);
+    }
+  };
+
+  const loadVouchers = async () => {
+    setIsLoadingVouchers(true);
+    try {
+      const data = await voucherService.getAvailableVouchers();
+      setVouchers(data);
+    } catch (error) {
+      console.error('Failed to load vouchers:', error);
+      setVouchers([]);
+    } finally {
+      setIsLoadingVouchers(false);
     }
   };
 
@@ -175,33 +195,33 @@ export default function AccountPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Tab Navigation */}
           <div className="bg-white rounded-lg border">
-            <div className="flex border-b">
+            <div className="flex border-b overflow-x-auto">
               <button
                 onClick={() => {
                   setActiveTab('info');
                   window.history.pushState(null, '', '/account?tab=info');
                 }}
-                className={`flex-1 px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors ${
+                className={`flex-1 min-w-fit px-3 sm:px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
                   activeTab === 'info'
                     ? 'text-black border-b-2 border-black'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                <User className="w-4 h-4 sm:w-5 sm:h-5 inline mr-2" />
-                Personal Info
+                <User className="w-4 h-4 inline mr-1" />
+                Info
               </button>
               <button
                 onClick={() => {
                   setActiveTab('addresses');
                   window.history.pushState(null, '', '/account?tab=addresses');
                 }}
-                className={`flex-1 px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors ${
+                className={`flex-1 min-w-fit px-3 sm:px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
                   activeTab === 'addresses'
                     ? 'text-black border-b-2 border-black'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                <MapPin className="w-4 h-4 sm:w-5 sm:h-5 inline mr-2" />
+                <MapPin className="w-4 h-4 inline mr-1" />
                 Addresses
               </button>
               <button
@@ -209,14 +229,28 @@ export default function AccountPage() {
                   setActiveTab('orders');
                   window.history.pushState(null, '', '/account?tab=orders');
                 }}
-                className={`flex-1 px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium transition-colors ${
+                className={`flex-1 min-w-fit px-3 sm:px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
                   activeTab === 'orders'
                     ? 'text-black border-b-2 border-black'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 inline mr-2" />
+                <ShoppingBag className="w-4 h-4 inline mr-1" />
                 Orders
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('vouchers');
+                  window.history.pushState(null, '', '/account?tab=vouchers');
+                }}
+                className={`flex-1 min-w-fit px-3 sm:px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
+                  activeTab === 'vouchers'
+                    ? 'text-black border-b-2 border-black'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Tag className="w-4 h-4 inline mr-1" />
+                Vouchers
               </button>
             </div>
 
@@ -253,7 +287,7 @@ export default function AccountPage() {
                 </div>
               )}
 
-              {/* Addresses Tab - Same as before */}
+              {/* Addresses Tab */}
               {activeTab === 'addresses' && (
                 <div>
                   <div className="flex items-center justify-between mb-4">
@@ -333,7 +367,7 @@ export default function AccountPage() {
                 </div>
               )}
 
-              {/* Orders Tab - Same as before, just update links */}
+              {/* Orders Tab */}
               {activeTab === 'orders' && (
                 <div>
                   <h3 className="text-lg text-black font-semibold mb-4">My Orders</h3>
@@ -405,6 +439,30 @@ export default function AccountPage() {
                             </span>
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Vouchers Tab */}
+              {activeTab === 'vouchers' && (
+                <div>
+                  <h3 className="text-lg text-black font-semibold mb-4">My Vouchers</h3>
+
+                  {isLoadingVouchers ? (
+                    <div className="text-center py-12">
+                      <Spinner size="lg" />
+                    </div>
+                  ) : vouchers.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Tag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-500 mb-4">No vouchers available</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {vouchers.map((voucher) => (
+                        <VoucherCard key={voucher.id} voucher={voucher} />
                       ))}
                     </div>
                   )}

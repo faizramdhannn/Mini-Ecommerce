@@ -3,15 +3,19 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { Tag, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { useCartStore } from '@/lib/store/cart.store';
 import { useAuthStore } from '@/lib/store/auth.store';
 import { orderService } from '@/lib/services/order.service';
+import { voucherService } from '@/lib/services/voucher.service';
 import { formatCurrency } from '@/lib/utils/format';
 import { PAYMENT_METHODS, SHIPPING_COST } from '@/lib/utils/constants';
 import { BankTransferModal, CreditCardModal, EWalletModal, CODModal } from '@/components/payment/PaymentModals';
 import toast from 'react-hot-toast';
 import type { CartItem } from '@/types';
+import type { Voucher } from '@/types/voucher';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -20,6 +24,11 @@ export default function CheckoutPage() {
   const [selectedPayment, setSelectedPayment] = useState('bank_transfer');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  
+  // Voucher states
+  const [voucherCode, setVoucherCode] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
+  const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -34,7 +43,48 @@ export default function CheckoutPage() {
     0
   ) || 0;
 
-  const total = subtotal + SHIPPING_COST;
+  // Calculate discount
+  const discount = appliedVoucher?.type === 'DISCOUNT' 
+    ? (appliedVoucher.discount_amount || 0)
+    : 0;
+
+  // Calculate shipping
+  const shipping = appliedVoucher?.type === 'FREE_SHIPPING' ? 0 : SHIPPING_COST;
+
+  // Calculate total
+  const total = subtotal - discount + shipping;
+
+  const handleApplyVoucher = async () => {
+    if (!voucherCode.trim()) {
+      toast.error('Please enter voucher code');
+      return;
+    }
+
+    setIsApplyingVoucher(true);
+    try {
+      const result = await voucherService.applyVoucher({
+        code: voucherCode.trim(),
+        subtotal,
+      });
+
+      if (result.valid && result.voucher) {
+        setAppliedVoucher(result.voucher);
+        toast.success('Voucher applied successfully!');
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      toast.error('Failed to apply voucher');
+    } finally {
+      setIsApplyingVoucher(false);
+    }
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherCode('');
+    toast.success('Voucher removed');
+  };
 
   const handleCheckout = async () => {
     if (!cart?.items || cart.items.length === 0) {
@@ -42,7 +92,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Show payment modal based on selected method
     setShowPaymentModal(true);
   };
 
@@ -62,15 +111,13 @@ export default function CheckoutPage() {
           quantity: item.quantity,
         })),
         payment_method: selectedPayment,
-        shipping_cost: SHIPPING_COST,
+        shipping_cost: shipping,
+        voucher_code: appliedVoucher?.code,
       };
 
       const order = await orderService.createOrder(orderData);
       
-      // For bank transfer, automatically mark as paid
       if (selectedPayment === 'bank_transfer') {
-        // In real app, this would be done by admin after verifying payment
-        // For demo purposes, we simulate instant payment confirmation
         toast.success('Order created! Waiting for payment confirmation');
       } else {
         toast.success('Payment processed successfully!');
@@ -128,6 +175,59 @@ export default function CheckoutPage() {
             </div>
           </div>
 
+          {/* Voucher Section */}
+          <div className="bg-white rounded-lg border p-6">
+            <h2 className="text-xl text-black font-semibold mb-4 flex items-center gap-2">
+              <Tag className="w-5 h-5" />
+              Apply Voucher
+            </h2>
+
+            {appliedVoucher ? (
+              <div className="bg-gray-300 border border-gray-500 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="font-semibold text-gray-600">{appliedVoucher.name}</p>
+                    <p className="text-sm text-gray-600">
+                      Code: <code className="font-mono font-bold">{appliedVoucher.code}</code>
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleRemoveVoucher}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-700" />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-700">
+                  {appliedVoucher.type === 'DISCOUNT' && `Discount: ${formatCurrency(appliedVoucher.discount_amount || 0)}`}
+                  {appliedVoucher.type === 'FREE_SHIPPING' && 'Free Shipping Applied'}
+                </p>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="Enter voucher code"
+                  value={voucherCode}
+                  onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                  className="flex-1 text-black"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleApplyVoucher();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={handleApplyVoucher}
+                  isLoading={isApplyingVoucher}
+                  disabled={!voucherCode.trim()}
+                >
+                  Use Voucher
+                </Button>
+              </div>
+            )}
+          </div>
+
           {/* Payment Method */}
           <div className="bg-white rounded-lg border p-6">
             <h2 className="text-xl text-black font-semibold mb-4">Payment Method</h2>
@@ -161,10 +261,21 @@ export default function CheckoutPage() {
                 <span className="text-gray-600">Subtotal</span>
                 <span className="font-medium text-gray-600">{formatCurrency(subtotal)}</span>
               </div>
+
+              {discount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Voucher Discount</span>
+                  <span className="font-medium">-{formatCurrency(discount)}</span>
+                </div>
+              )}
+
               <div className="flex justify-between">
                 <span className="text-gray-600">Shipping</span>
-                <span className="font-medium text-gray-600">{formatCurrency(SHIPPING_COST)}</span>
+                <span className={`font-medium ${shipping === 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                  {shipping === 0 ? 'FREE' : formatCurrency(shipping)}
+                </span>
               </div>
+
               <div className="border-t pt-3">
                 <div className="flex justify-between text-black text-lg font-bold">
                   <span>Total</span>
@@ -179,7 +290,7 @@ export default function CheckoutPage() {
               onClick={handleCheckout}
               isLoading={isProcessing}
             >
-              Place Order
+              Checkout
             </Button>
           </div>
         </div>
