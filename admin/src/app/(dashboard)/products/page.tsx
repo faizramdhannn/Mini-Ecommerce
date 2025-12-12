@@ -51,13 +51,18 @@ export default function ProductsPage() {
     }
   };
 
+  const calculateDiscount = (price: number, comparePrice: number | null | undefined) => {
+    if (!comparePrice || comparePrice <= price) return 0;
+    return Math.round(((comparePrice - price) / comparePrice) * 100);
+  };
+
   const columns = [
     {
       key: 'name',
       label: 'Product',
       render: (product: Product) => (
         <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-dark-800 rounded-lg overflow-hidden">
+          <div className="w-12 h-12 bg-dark-800 rounded-lg overflow-hidden flex-shrink-0">
             {product.media?.[0] && (
               <img
                 src={product.media[0].url}
@@ -83,9 +88,53 @@ export default function ProductsPage() {
     {
       key: 'price',
       label: 'Price',
-      render: (product: Product) => (
-        <span className="text-white font-medium">{formatCurrency(product.price)}</span>
-      ),
+      render: (product: Product) => {
+        const discount = calculateDiscount(product.price, product.compare_at_price);
+        
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-white font-medium">{formatCurrency(product.price)}</span>
+              {discount > 0 && (
+                <Badge variant="success" className="text-xs">
+                  -{discount}%
+                </Badge>
+              )}
+            </div>
+            {product.compare_at_price && product.compare_at_price > product.price && (
+              <div className="text-xs text-gray-500 line-through">
+                {formatCurrency(Number(product.compare_at_price))}
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'flash_sale',
+      label: 'Flash Sale',
+      render: (product: Product) => {
+        if (!product.is_flash_sale) {
+          return <span className="text-gray-500 text-sm">-</span>;
+        }
+
+        const now = new Date();
+        const endDate = product.flash_sale_end ? new Date(product.flash_sale_end) : null;
+        const isActive = endDate && endDate > now;
+
+        return (
+          <div className="space-y-1">
+            <Badge variant={isActive ? 'warning' : 'default'}>
+              ⚡ {isActive ? 'Active' : 'Ended'}
+            </Badge>
+            {endDate && (
+              <div className="text-xs text-gray-400">
+                Until {endDate.toLocaleDateString()}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'stock',

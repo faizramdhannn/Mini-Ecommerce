@@ -1,3 +1,5 @@
+// admin/src/types/index.ts - FIXED VERSION
+
 export interface User {
   id: number;
   nickname: string;
@@ -27,7 +29,7 @@ export interface Product {
   category_id?: number;
   price: number;
   
-  // NEW FIELDS - Flash Sale & Discount
+  // ⭐ FLASH SALE & DISCOUNT FIELDS - PROPERLY TYPED
   compare_at_price?: number | null;
   is_flash_sale?: boolean;
   flash_sale_end?: string | null;

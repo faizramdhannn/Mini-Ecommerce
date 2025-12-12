@@ -142,10 +142,10 @@ export default function EditProductPage() {
         price,
         compare_at_price: comparePrice,
         stock: parseInt(formData.stock),
-        category_id: formData.category_id ? parseInt(formData.category_id) : undefined,
-        brand_id: formData.brand_id ? parseInt(formData.brand_id) : undefined,
+        category_id: formData.category_id ? parseInt(formData.category_id) : null,
+        brand_id: formData.brand_id ? parseInt(formData.brand_id) : null,
         is_flash_sale: formData.is_flash_sale,
-        flash_sale_end: formData.flash_sale_end || null,
+        flash_sale_end: formData.is_flash_sale && formData.flash_sale_end ? formData.flash_sale_end : null,
       };
 
       await productService.updateProduct(product.id, productData);
@@ -211,7 +211,8 @@ export default function EditProductPage() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={4}
-                className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-lg text-white"
+                className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent transition-all"
+                placeholder="Enter product description"
               />
             </div>
 
@@ -261,7 +262,7 @@ export default function EditProductPage() {
               onChange={(e) => setFormData({ ...formData, compare_at_price: e.target.value })}
               min="0"
               step="1000"
-              placeholder="Optional"
+              placeholder="Optional - Original price"
             />
           </div>
 
@@ -270,7 +271,7 @@ export default function EditProductPage() {
               💡 <strong>Compare At Price:</strong> Harga asli sebelum diskon.
             </p>
             <p className="text-xs text-gray-400">
-              Jika diisi, harga asli dicoret dan menampilkan persentase diskon.
+              Jika diisi, harga asli akan dicoret dan menampilkan persentase diskon.
             </p>
           </div>
 
@@ -292,21 +293,25 @@ export default function EditProductPage() {
                 id="is_flash_sale"
                 checked={formData.is_flash_sale}
                 onChange={(e) => setFormData({ ...formData, is_flash_sale: e.target.checked })}
-                className="w-5 h-5"
+                className="w-5 h-5 rounded border-dark-600 text-white focus:ring-white cursor-pointer"
               />
-              <label htmlFor="is_flash_sale" className="text-white cursor-pointer">
+              <label htmlFor="is_flash_sale" className="text-white cursor-pointer font-medium">
                 ⚡ Mark as Flash Sale Product
               </label>
             </div>
 
             {formData.is_flash_sale && (
-              <Input
-                label="Flash Sale End Date & Time"
-                type="datetime-local"
-                value={formData.flash_sale_end}
-                onChange={(e) => setFormData({ ...formData, flash_sale_end: e.target.value })}
-                className="mt-2"
-              />
+              <div>
+                <Input
+                  label="Flash Sale End Date & Time"
+                  type="datetime-local"
+                  value={formData.flash_sale_end}
+                  onChange={(e) => setFormData({ ...formData, flash_sale_end: e.target.value })}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Set when the flash sale should end
+                </p>
+              </div>
             )}
           </div>
         </Card>
@@ -320,11 +325,11 @@ export default function EditProductPage() {
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 {existingImages.map((url, index) => (
                   <div key={`exist-${index}`} className="relative group">
-                    <img src={url} className="w-full h-32 object-cover rounded-lg" />
+                    <img src={url} className="w-full h-32 object-cover rounded-lg" alt={`Product ${index + 1}`} />
                     <button
                       type="button"
                       onClick={() => removeExistingImage(index)}
-                      className="absolute top-2 right-2 bg-red-500 p-1 rounded-full opacity-0 group-hover:opacity-100"
+                      className="absolute top-2 right-2 bg-red-500 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <X className="w-4 h-4 text-white" />
                     </button>
@@ -333,11 +338,11 @@ export default function EditProductPage() {
 
                 {newImagePreviews.map((preview, index) => (
                   <div key={`new-${index}`} className="relative group">
-                    <img src={preview} className="w-full h-32 object-cover rounded-lg" />
+                    <img src={preview} className="w-full h-32 object-cover rounded-lg" alt={`New ${index + 1}`} />
                     <button
                       type="button"
                       onClick={() => removeNewImage(index)}
-                      className="absolute top-2 right-2 bg-red-500 p-1 rounded-full opacity-0 group-hover:opacity-100"
+                      className="absolute top-2 right-2 bg-red-500 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <X className="w-4 h-4 text-white" />
                     </button>
@@ -350,7 +355,7 @@ export default function EditProductPage() {
             )}
 
             {totalImages < 5 && (
-              <div className="border-2 border-dashed border-dark-700 rounded-lg p-8 text-center cursor-pointer">
+              <div className="border-2 border-dashed border-dark-700 rounded-lg p-8 text-center cursor-pointer hover:border-dark-600 transition-colors">
                 <input
                   id="image-upload"
                   type="file"
@@ -362,8 +367,8 @@ export default function EditProductPage() {
                 <label htmlFor="image-upload" className="cursor-pointer">
                   <Upload className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                   <p className="text-gray-400">Click to upload images</p>
-                  <p className="text-sm text-gray-500">
-                    PNG, JPG up to {5 - totalImages} remaining
+                  <p className="text-sm text-gray-500 mt-1">
+                    PNG, JPG - {5 - totalImages} remaining
                   </p>
                 </label>
               </div>

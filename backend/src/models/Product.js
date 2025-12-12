@@ -1,4 +1,4 @@
-// models/Product.js
+// backend/src/models/Product.js - VERIFIED VERSION
 const { DataTypes } = require('sequelize');
 const sequelize = require('../db');
 const { slugify } = require('../utils/slugify');
@@ -41,21 +41,21 @@ const Product = sequelize.define('Product', {
     allowNull: false
   },
 
-  // ⭐ NEW FIELD – compare price (harga coret)
+  // ⭐ COMPARE PRICE - Harga asli sebelum diskon
   compare_at_price: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true,
     defaultValue: null
   },
 
-  // ⭐ NEW FIELD – flash sale aktif atau tidak
+  // ⭐ IS FLASH SALE - Apakah produk sedang flash sale
   is_flash_sale: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: false
   },
 
-  // ⭐ NEW FIELD – kapan flash sale berakhir
+  // ⭐ FLASH SALE END - Kapan flash sale berakhir
   flash_sale_end: {
     type: DataTypes.DATE,
     allowNull: true,
@@ -78,11 +78,13 @@ const Product = sequelize.define('Product', {
   timestamps: true,
   hooks: {
     beforeValidate: (product) => {
+      // Auto-generate slug dari name
       if (product.name && !product.slug) {
         product.slug = slugify(product.name);
       }
     },
     beforeUpdate: (product) => {
+      // Auto-update slug jika name berubah
       if (product.changed('name')) {
         product.slug = slugify(product.name);
       }
