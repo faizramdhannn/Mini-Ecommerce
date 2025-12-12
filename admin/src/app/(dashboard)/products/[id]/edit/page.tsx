@@ -31,6 +31,7 @@ export default function EditProductPage() {
     category_id: '',
     brand_id: '',
     is_flash_sale: false,
+    flash_sale_end: '',
   });
 
   const [existingImages, setExistingImages] = useState<string[]>([]);
@@ -47,8 +48,15 @@ export default function EditProductPage() {
   const loadProduct = async (id: number) => {
     try {
       const data = await productService.getProduct(id);
-
       setProduct(data);
+
+      // Format flash_sale_end untuk input datetime-local
+      let flashSaleEndFormatted = '';
+      if (data.flash_sale_end) {
+        const date = new Date(data.flash_sale_end);
+        // Format: YYYY-MM-DDTHH:mm
+        flashSaleEndFormatted = date.toISOString().slice(0, 16);
+      }
 
       setFormData({
         name: data.name,
@@ -59,6 +67,7 @@ export default function EditProductPage() {
         category_id: data.category_id?.toString() || '',
         brand_id: data.brand_id?.toString() || '',
         is_flash_sale: data.is_flash_sale || false,
+        flash_sale_end: flashSaleEndFormatted,
       });
 
       setExistingImages(data.media?.map(m => m.url) || []);
@@ -82,8 +91,6 @@ export default function EditProductPage() {
       toast.error('Failed to load options');
     }
   };
-
-  /* ---------------- IMAGE HANDLING ---------------- */
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -114,17 +121,12 @@ export default function EditProductPage() {
     setNewImagePreviews(newImagePreviews.filter((_, i) => i !== index));
   };
 
-  /* ---------------- FORM SUBMIT ---------------- */
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!product) return;
 
-    // Validasi compare at price
     const price = parseFloat(formData.price);
-    const comparePrice = formData.compare_at_price
-      ? parseFloat(formData.compare_at_price)
-      : null;
+    const comparePrice = formData.compare_at_price ? parseFloat(formData.compare_at_price) : null;
 
     if (comparePrice && comparePrice <= price) {
       toast.error('Compare at price must be greater than price');
@@ -134,30 +136,28 @@ export default function EditProductPage() {
     setIsSaving(true);
 
     try {
-      const productData = {
-        ...formData,
+      const productData: any = {
+        name: formData.name,
+        description: formData.description,
         price,
         compare_at_price: comparePrice,
         stock: parseInt(formData.stock),
         category_id: formData.category_id ? parseInt(formData.category_id) : undefined,
         brand_id: formData.brand_id ? parseInt(formData.brand_id) : undefined,
+        is_flash_sale: formData.is_flash_sale,
+        flash_sale_end: formData.flash_sale_end || null,
       };
 
-      // Update detail produk
       await productService.updateProduct(product.id, productData);
-
-      // TODO: Upload images if your backend supports it
-
       toast.success('Product updated successfully');
       router.push('/products');
     } catch (error: any) {
+      console.error('Update error:', error);
       toast.error(error.response?.data?.message || 'Failed to update product');
     } finally {
       setIsSaving(false);
     }
   };
-
-  /* ---------------- UI ---------------- */
 
   if (isLoading) {
     return (
@@ -179,8 +179,6 @@ export default function EditProductPage() {
 
   return (
     <div className="space-y-6 animate-fadeIn max-w-4xl">
-
-      {/* Header */}
       <div className="flex items-center space-x-4">
         <Button variant="ghost" onClick={() => router.back()}>
           <ArrowLeft className="w-5 h-5" />
@@ -192,8 +190,7 @@ export default function EditProductPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-
-        {/* Basic */}
+        {/* Basic Information */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Basic Information</h2>
 
@@ -242,7 +239,7 @@ export default function EditProductPage() {
           </div>
         </Card>
 
-        {/* Pricing */}
+        {/* Pricing & Inventory */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Pricing & Inventory</h2>
 
@@ -287,20 +284,34 @@ export default function EditProductPage() {
             className="mt-4"
           />
 
-          <div className="flex items-center space-x-3 p-4 mt-4 bg-dark-800 border border-dark-700 rounded-lg">
-            <input
-              type="checkbox"
-              id="is_flash_sale"
-              checked={formData.is_flash_sale}
-              onChange={(e) => setFormData({ ...formData, is_flash_sale: e.target.checked })}
-            />
-            <label htmlFor="is_flash_sale" className="text-white cursor-pointer">
-              ⚡ Mark as Flash Sale Product
-            </label>
+          {/* Flash Sale Section */}
+          <div className="mt-4 space-y-4">
+            <div className="flex items-center space-x-3 p-4 bg-dark-800 border border-dark-700 rounded-lg">
+              <input
+                type="checkbox"
+                id="is_flash_sale"
+                checked={formData.is_flash_sale}
+                onChange={(e) => setFormData({ ...formData, is_flash_sale: e.target.checked })}
+                className="w-5 h-5"
+              />
+              <label htmlFor="is_flash_sale" className="text-white cursor-pointer">
+                ⚡ Mark as Flash Sale Product
+              </label>
+            </div>
+
+            {formData.is_flash_sale && (
+              <Input
+                label="Flash Sale End Date & Time"
+                type="datetime-local"
+                value={formData.flash_sale_end}
+                onChange={(e) => setFormData({ ...formData, flash_sale_end: e.target.value })}
+                className="mt-2"
+              />
+            )}
           </div>
         </Card>
 
-        {/* Images */}
+        {/* Product Images */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Product Images</h2>
 
@@ -348,7 +359,7 @@ export default function EditProductPage() {
                   onChange={handleImageChange}
                   className="hidden"
                 />
-                <label htmlFor="image-upload">
+                <label htmlFor="image-upload" className="cursor-pointer">
                   <Upload className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                   <p className="text-gray-400">Click to upload images</p>
                   <p className="text-sm text-gray-500">
@@ -360,7 +371,7 @@ export default function EditProductPage() {
           </div>
         </Card>
 
-        {/* Save */}
+        {/* Save Button */}
         <div className="flex justify-end space-x-3">
           <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
@@ -370,9 +381,7 @@ export default function EditProductPage() {
             Update Product
           </Button>
         </div>
-
       </form>
-
     </div>
   );
 }

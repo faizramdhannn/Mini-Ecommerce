@@ -19,11 +19,12 @@ export default function NewProductPage() {
     name: '',
     description: '',
     price: '',
-    compare_at_price: '', // TAMBAHKAN
+    compare_at_price: '',
     stock: '',
     category_id: '',
     brand_id: '',
-    is_flash_sale: false, // TAMBAHKAN
+    is_flash_sale: false,
+    flash_sale_end: '',
   });
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -71,7 +72,6 @@ export default function NewProductPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
     const price = parseFloat(formData.price);
     const comparePrice = formData.compare_at_price ? parseFloat(formData.compare_at_price) : null;
 
@@ -83,19 +83,23 @@ export default function NewProductPage() {
     setIsLoading(true);
 
     try {
-      const productData = {
-        ...formData,
+      const productData: any = {
+        name: formData.name,
+        description: formData.description,
         price,
         compare_at_price: comparePrice,
         stock: parseInt(formData.stock),
         category_id: formData.category_id ? parseInt(formData.category_id) : undefined,
         brand_id: formData.brand_id ? parseInt(formData.brand_id) : undefined,
+        is_flash_sale: formData.is_flash_sale,
+        flash_sale_end: formData.flash_sale_end || null,
       };
 
       await productService.createProduct(productData);
       toast.success('Product created successfully');
       router.push('/products');
     } catch (error: any) {
+      console.error('Create error:', error);
       toast.error(error.response?.data?.message || 'Failed to create product');
     } finally {
       setIsLoading(false);
@@ -210,18 +214,29 @@ export default function NewProductPage() {
               placeholder="0"
             />
 
-            {/* Flash Sale Toggle */}
-            <div className="flex items-center space-x-3 p-4 bg-dark-800 border border-dark-700 rounded-lg">
-              <input
-                type="checkbox"
-                id="is_flash_sale"
-                checked={formData.is_flash_sale}
-                onChange={(e) => setFormData({ ...formData, is_flash_sale: e.target.checked })}
-                className="w-5 h-5 rounded border-dark-600 text-white focus:ring-white"
-              />
-              <label htmlFor="is_flash_sale" className="text-white font-medium cursor-pointer">
-                ⚡ Mark as Flash Sale Product
-              </label>
+            {/* Flash Sale Section */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3 p-4 bg-dark-800 border border-dark-700 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="is_flash_sale"
+                  checked={formData.is_flash_sale}
+                  onChange={(e) => setFormData({ ...formData, is_flash_sale: e.target.checked })}
+                  className="w-5 h-5 rounded border-dark-600 text-white focus:ring-white"
+                />
+                <label htmlFor="is_flash_sale" className="text-white font-medium cursor-pointer">
+                  ⚡ Mark as Flash Sale Product
+                </label>
+              </div>
+
+              {formData.is_flash_sale && (
+                <Input
+                  label="Flash Sale End Date & Time"
+                  type="datetime-local"
+                  value={formData.flash_sale_end}
+                  onChange={(e) => setFormData({ ...formData, flash_sale_end: e.target.value })}
+                />
+              )}
             </div>
           </div>
         </Card>

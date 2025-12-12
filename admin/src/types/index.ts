@@ -4,6 +4,7 @@ export interface User {
   email: string;
   full_name?: string;
   phone?: string;
+  role?: string;
   created_at?: string;
 }
 
@@ -20,17 +21,24 @@ export interface AuthResponse {
 export interface Product {
   id: number;
   name: string;
+  slug?: string;
   description?: string;
   brand_id?: number;
   category_id?: number;
   price: number;
-  compare_at_price?: number;
+  
+  // NEW FIELDS - Flash Sale & Discount
+  compare_at_price?: number | null;
   is_flash_sale?: boolean;
-  flash_sale_end?: string;
+  flash_sale_end?: string | null;
+  
   stock: number;
-  category?: { id: number; name: string };
-  brand?: { id: number; name: string };
-  media?: { url: string }[];
+  rating?: number;
+  category?: { id: number; name: string; slug?: string };
+  brand?: { id: number; name: string; slug?: string };
+  media?: { url: string; media_type?: string }[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ProductFilters {
@@ -38,7 +46,11 @@ export interface ProductFilters {
   limit?: number;
   search?: string;
   category_id?: number;
+  category_slug?: string;
   brand_id?: number;
+  min_price?: number;
+  max_price?: number;
+  is_flash_sale?: boolean;
 }
 
 export interface Order {
@@ -57,6 +69,7 @@ export interface Order {
 
 export interface OrderItem {
   id: number;
+  product_id: number;
   product_name_snapshot: string;
   price_snapshot: number;
   quantity: number;
