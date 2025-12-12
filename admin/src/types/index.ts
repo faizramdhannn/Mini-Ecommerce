@@ -24,6 +24,9 @@ export interface Product {
   brand_id?: number;
   category_id?: number;
   price: number;
+  compare_at_price?: number;
+  is_flash_sale?: boolean;
+  flash_sale_end?: string;
   stock: number;
   category?: { id: number; name: string };
   brand?: { id: number; name: string };

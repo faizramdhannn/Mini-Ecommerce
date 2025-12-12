@@ -4,7 +4,6 @@ const { successResponse, errorResponse, paginatedResponse } = require('../utils/
 class ProductController {
   /**
    * Get all products with filters
-   * GET /api/products?page=1&limit=12&search=...&category_slug=...
    */
   async getAllProducts(req, res, next) {
     try {
@@ -18,9 +17,9 @@ class ProductController {
         min_price: req.query.min_price,
         max_price: req.query.max_price
       };
-      
+
       const result = await productService.getAllProducts(filters);
-      
+
       return paginatedResponse(
         res,
         result.products,
@@ -33,15 +32,14 @@ class ProductController {
   }
 
   /**
-   * Get product by SLUG (bukan ID)
-   * GET /api/products/:slug
+   * Get product by SLUG
    */
   async getProductBySlug(req, res, next) {
     try {
       const { slug } = req.params;
-      
+
       const product = await productService.getProductBySlug(slug);
-      
+
       return successResponse(res, product, 'Product retrieved successfully');
     } catch (error) {
       if (error.message === 'Product not found') {
@@ -52,15 +50,14 @@ class ProductController {
   }
 
   /**
-   * Get product by ID (untuk admin)
-   * GET /api/products/:id
+   * Get product by ID (admin)
    */
   async getProductById(req, res, next) {
     try {
       const { id } = req.params;
-      
+
       const product = await productService.getProductById(id);
-      
+
       return successResponse(res, product, 'Product retrieved successfully');
     } catch (error) {
       if (error.message === 'Product not found') {
@@ -72,14 +69,18 @@ class ProductController {
 
   /**
    * Create product
-   * POST /api/products
    */
   async createProduct(req, res, next) {
     try {
-      const productData = req.body;
-      
+      const productData = {
+        ...req.body,
+        compare_at_price: req.body.compare_at_price || null,
+        is_flash_sale: req.body.is_flash_sale ?? false,
+        flash_sale_end: req.body.flash_sale_end || null
+      };
+
       const product = await productService.createProduct(productData);
-      
+
       return successResponse(res, product, 'Product created successfully', 201);
     } catch (error) {
       next(error);
@@ -88,15 +89,20 @@ class ProductController {
 
   /**
    * Update product
-   * PUT /api/products/:id
    */
   async updateProduct(req, res, next) {
     try {
       const { id } = req.params;
-      const productData = req.body;
-      
+
+      const productData = {
+        ...req.body,
+        compare_at_price: req.body.compare_at_price || null,
+        is_flash_sale: req.body.is_flash_sale ?? false,
+        flash_sale_end: req.body.flash_sale_end || null
+      };
+
       const product = await productService.updateProduct(id, productData);
-      
+
       return successResponse(res, product, 'Product updated successfully');
     } catch (error) {
       if (error.message === 'Product not found') {
@@ -108,14 +114,13 @@ class ProductController {
 
   /**
    * Delete product
-   * DELETE /api/products/:id
    */
   async deleteProduct(req, res, next) {
     try {
       const { id } = req.params;
-      
+
       await productService.deleteProduct(id);
-      
+
       return successResponse(res, null, 'Product deleted successfully');
     } catch (error) {
       if (error.message === 'Product not found') {
@@ -127,12 +132,11 @@ class ProductController {
 
   /**
    * Get all categories
-   * GET /api/categories
    */
   async getAllCategories(req, res, next) {
     try {
       const categories = await productService.getAllCategories();
-      
+
       return successResponse(res, categories, 'Categories retrieved successfully');
     } catch (error) {
       next(error);
@@ -141,19 +145,17 @@ class ProductController {
 
   /**
    * Get products by category slug
-   * GET /api/categories/:slug/products?page=1&limit=12
    */
   async getProductsByCategory(req, res, next) {
     try {
       const { slug } = req.params;
       const { page = 1, limit = 12 } = req.query;
-      
-      const result = await productService.getProductsByCategory(slug, { 
-        page: parseInt(page), 
-        limit: parseInt(limit) 
+
+      const result = await productService.getProductsByCategory(slug, {
+        page: parseInt(page),
+        limit: parseInt(limit)
       });
-      
-      // Return format yang sesuai dengan frontend
+
       return res.status(200).json({
         success: true,
         message: 'Products retrieved successfully',
@@ -171,12 +173,11 @@ class ProductController {
 
   /**
    * Get all brands
-   * GET /api/brands
    */
   async getAllBrands(req, res, next) {
     try {
       const brands = await productService.getAllBrands();
-      
+
       return successResponse(res, brands, 'Brands retrieved successfully');
     } catch (error) {
       next(error);
@@ -185,18 +186,17 @@ class ProductController {
 
   /**
    * Get products by brand slug
-   * GET /api/brands/:slug/products?page=1&limit=12
    */
   async getProductsByBrand(req, res, next) {
     try {
       const { slug } = req.params;
       const { page = 1, limit = 12 } = req.query;
-      
-      const result = await productService.getProductsByBrand(slug, { 
-        page: parseInt(page), 
-        limit: parseInt(limit) 
+
+      const result = await productService.getProductsByBrand(slug, {
+        page: parseInt(page),
+        limit: parseInt(limit)
       });
-      
+
       return res.status(200).json({
         success: true,
         message: 'Products retrieved successfully',

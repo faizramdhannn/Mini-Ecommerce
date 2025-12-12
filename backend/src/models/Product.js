@@ -9,40 +9,70 @@ const Product = sequelize.define('Product', {
     primaryKey: true,
     autoIncrement: true
   },
+
   name: {
     type: DataTypes.STRING(200),
     allowNull: false
   },
+
   slug: {
     type: DataTypes.STRING,
     allowNull: true,
     unique: true
   },
+
   description: {
     type: DataTypes.TEXT,
     allowNull: true
   },
+
   brand_id: {
     type: DataTypes.INTEGER,
     allowNull: true
   },
+
   category_id: {
     type: DataTypes.INTEGER,
     allowNull: true
   },
+
   price: {
     type: DataTypes.BIGINT,
     allowNull: false
   },
+
+  // ⭐ NEW FIELD – compare price (harga coret)
+  compare_at_price: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    defaultValue: null
+  },
+
+  // ⭐ NEW FIELD – flash sale aktif atau tidak
+  is_flash_sale: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
+  },
+
+  // ⭐ NEW FIELD – kapan flash sale berakhir
+  flash_sale_end: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    defaultValue: null
+  },
+
   stock: {
     type: DataTypes.INTEGER,
     allowNull: false,
     defaultValue: 0
   },
+
   rating: {
     type: DataTypes.DECIMAL(2, 1),
     allowNull: true
   }
+
 }, {
   tableName: 'products',
   timestamps: true,

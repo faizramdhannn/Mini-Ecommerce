@@ -14,29 +14,30 @@ class ProductService {
       category_slug,
       brand_id, 
       min_price, 
-      max_price 
+      max_price,
+      is_flash_sale
     } = filters;
+
     const offset = (page - 1) * limit;
-    
     const where = {};
-    
-    // Filter search
+
+    // 🔍 Search
     if (search) {
       where.name = { [Op.iLike]: `%${search}%` };
     }
-    
-    // Filter category by ID
+
+    // 🔍 Category ID
     if (category_id) {
       where.category_id = category_id;
     }
 
-    // Filter category by slug
+    // 🔍 Category by slug
     if (category_slug) {
       try {
         const category = await Category.findOne({ 
           where: { slug: category_slug } 
         });
-        
+
         if (category) {
           where.category_id = category.id;
         } else {
@@ -59,19 +60,28 @@ class ProductService {
         };
       }
     }
-    
-    // Filter brand
+
+    // 🔍 Brand
     if (brand_id) {
       where.brand_id = brand_id;
     }
-    
-    // Filter price range
+
+    // 🔍 Price range
     if (min_price || max_price) {
       where.price = {};
       if (min_price) where.price[Op.gte] = min_price;
       if (max_price) where.price[Op.lte] = max_price;
     }
-    
+
+    // 🔥 Flash sale filter (optional)
+    if (is_flash_sale !== undefined) {
+      where.is_flash_sale = is_flash_sale;
+
+      if (is_flash_sale === true) {
+        where.flash_sale_end = { [Op.gt]: new Date() };
+      }
+    }
+
     try {
       const { count, rows } = await Product.findAndCountAll({
         where,
@@ -84,7 +94,7 @@ class ProductService {
         offset,
         order: [['created_at', 'DESC']]
       });
-      
+
       return {
         products: rows,
         total: count,
@@ -109,16 +119,16 @@ class ProductService {
         { model: ProductMedia, as: 'media' }
       ]
     });
-    
+
     if (!product) {
       throw new Error('Product not found');
     }
-    
+
     return product;
   }
 
   /**
-   * Get product by slug - NEW METHOD
+   * Get product by slug
    */
   async getProductBySlug(slug) {
     const product = await Product.findOne({
@@ -138,12 +148,11 @@ class ProductService {
   }
 
   /**
-   * Get products by category slug - NEW METHOD
+   * Get products by category slug
    */
   async getProductsByCategory(categorySlug, options = {}) {
     const { page = 1, limit = 12 } = options;
-    
-    // Cari category dulu
+
     const category = await Category.findOne({
       where: { slug: categorySlug }
     });
@@ -183,12 +192,11 @@ class ProductService {
   }
 
   /**
-   * Get products by brand slug - NEW METHOD
+   * Get products by brand slug
    */
   async getProductsByBrand(brandSlug, options = {}) {
     const { page = 1, limit = 12 } = options;
-    
-    // Cari brand dulu
+
     const brand = await Brand.findOne({
       where: { slug: brandSlug }
     });
@@ -231,7 +239,20 @@ class ProductService {
    * Create product
    */
   async createProduct(productData) {
-    const product = await Product.create(productData);
+    const product = await Product.create({
+      name: productData.name,
+      slug: productData.slug,
+      price: productData.price,
+      stock: productData.stock,
+      category_id: productData.category_id,
+      brand_id: productData.brand_id,
+
+      // ⭐ NEW FIELDS
+      compare_at_price: productData.compare_at_price || null,
+      is_flash_sale: productData.is_flash_sale ?? false,
+      flash_sale_end: productData.flash_sale_end || null
+    });
+
     return await this.getProductById(product.id);
   }
 
@@ -240,12 +261,25 @@ class ProductService {
    */
   async updateProduct(productId, productData) {
     const product = await Product.findByPk(productId);
-    
+
     if (!product) {
       throw new Error('Product not found');
     }
-    
-    await product.update(productData);
+
+    await product.update({
+      name: productData.name,
+      slug: productData.slug,
+      price: productData.price,
+      stock: productData.stock,
+      category_id: productData.category_id,
+      brand_id: productData.brand_id,
+
+      // ⭐ NEW FIELDS
+      compare_at_price: productData.compare_at_price || null,
+      is_flash_sale: productData.is_flash_sale ?? false,
+      flash_sale_end: productData.flash_sale_end || null
+    });
+
     return await this.getProductById(productId);
   }
 
@@ -254,17 +288,17 @@ class ProductService {
    */
   async deleteProduct(productId) {
     const product = await Product.findByPk(productId);
-    
+
     if (!product) {
       throw new Error('Product not found');
     }
-    
+
     await product.destroy();
     return true;
   }
 
   /**
-   * Get all categories
+   * Categories
    */
   async getAllCategories() {
     return await Category.findAll({
@@ -272,13 +306,8 @@ class ProductService {
     });
   }
 
-  /**
-   * Get category by slug
-   */
   async getCategoryBySlug(slug) {
-    const category = await Category.findOne({
-      where: { slug }
-    });
+    const category = await Category.findOne({ where: { slug } });
 
     if (!category) {
       throw new Error('Category not found');
@@ -288,7 +317,7 @@ class ProductService {
   }
 
   /**
-   * Get all brands
+   * Brands
    */
   async getAllBrands() {
     return await Brand.findAll({
@@ -296,13 +325,8 @@ class ProductService {
     });
   }
 
-  /**
-   * Get brand by slug
-   */
   async getBrandBySlug(slug) {
-    const brand = await Brand.findOne({
-      where: { slug }
-    });
+    const brand = await Brand.findOne({ where: { slug } });
 
     if (!brand) {
       throw new Error('Brand not found');

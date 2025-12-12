@@ -19,9 +19,11 @@ export default function NewProductPage() {
     name: '',
     description: '',
     price: '',
+    compare_at_price: '', // TAMBAHKAN
     stock: '',
     category_id: '',
     brand_id: '',
+    is_flash_sale: false, // TAMBAHKAN
   });
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -68,23 +70,29 @@ export default function NewProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validation
+    const price = parseFloat(formData.price);
+    const comparePrice = formData.compare_at_price ? parseFloat(formData.compare_at_price) : null;
+
+    if (comparePrice && comparePrice <= price) {
+      toast.error('Compare at price must be greater than price');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const productData = {
         ...formData,
-        price: parseFloat(formData.price),
+        price,
+        compare_at_price: comparePrice,
         stock: parseInt(formData.stock),
         category_id: formData.category_id ? parseInt(formData.category_id) : undefined,
         brand_id: formData.brand_id ? parseInt(formData.brand_id) : undefined,
       };
 
-      // Create product
       await productService.createProduct(productData);
-      
-      // TODO: Upload images
-      // In real implementation, you would upload images here
-      
       toast.success('Product created successfully');
       router.push('/products');
     } catch (error: any) {
@@ -96,7 +104,6 @@ export default function NewProductPage() {
 
   return (
     <div className="space-y-6 animate-fadeIn max-w-4xl">
-      {/* Header */}
       <div className="flex items-center space-x-4">
         <Button variant="ghost" onClick={() => router.back()}>
           <ArrowLeft className="w-5 h-5" />
@@ -160,17 +167,38 @@ export default function NewProductPage() {
         {/* Pricing & Inventory */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Pricing & Inventory</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Price (IDR)"
-              type="number"
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              required
-              min="0"
-              step="1000"
-              placeholder="0"
-            />
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Price (IDR) *"
+                type="number"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                required
+                min="0"
+                step="1000"
+                placeholder="0"
+              />
+
+              <Input
+                label="Compare At Price (IDR)"
+                type="number"
+                value={formData.compare_at_price}
+                onChange={(e) => setFormData({ ...formData, compare_at_price: e.target.value })}
+                min="0"
+                step="1000"
+                placeholder="0 (Optional)"
+              />
+            </div>
+
+            <div className="bg-dark-800 border border-dark-700 rounded-lg p-4">
+              <p className="text-sm text-gray-300 mb-2">
+                💡 <strong>Compare At Price:</strong> Harga asli produk sebelum diskon.
+              </p>
+              <p className="text-xs text-gray-400">
+                Jika diisi, harga ini akan dicoret di frontend dan menampilkan persentase diskon.
+              </p>
+            </div>
 
             <Input
               label="Stock"
@@ -181,6 +209,20 @@ export default function NewProductPage() {
               min="0"
               placeholder="0"
             />
+
+            {/* Flash Sale Toggle */}
+            <div className="flex items-center space-x-3 p-4 bg-dark-800 border border-dark-700 rounded-lg">
+              <input
+                type="checkbox"
+                id="is_flash_sale"
+                checked={formData.is_flash_sale}
+                onChange={(e) => setFormData({ ...formData, is_flash_sale: e.target.checked })}
+                className="w-5 h-5 rounded border-dark-600 text-white focus:ring-white"
+              />
+              <label htmlFor="is_flash_sale" className="text-white font-medium cursor-pointer">
+                ⚡ Mark as Flash Sale Product
+              </label>
+            </div>
           </div>
         </Card>
 

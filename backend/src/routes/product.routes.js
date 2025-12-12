@@ -10,6 +10,23 @@ const productValidation = [
   body('name').notEmpty().withMessage('Product name is required'),
   body('price').isNumeric().withMessage('Price must be a number'),
   body('stock').isNumeric().withMessage('Stock must be a number'),
+
+  // NEW ↓↓↓
+  body('compare_at_price')
+    .optional()
+    .isNumeric()
+    .withMessage('compare_at_price must be a number'),
+
+  body('is_flash_sale')
+    .optional()
+    .isBoolean()
+    .withMessage('is_flash_sale must be true or false'),
+
+  body('flash_sale_end')
+    .optional()
+    .isISO8601()
+    .withMessage('flash_sale_end must be a valid datetime'),
+
   validate
 ];
 
@@ -18,13 +35,13 @@ const productValidation = [
 // Get all categories
 router.get('/categories', productController.getAllCategories);
 
-// Get all brands  
+// Get all brands
 router.get('/brands', productController.getAllBrands);
 
 // Get all products with filters
 router.get('/', optionalAuth, productController.getAllProducts);
 
-// Get product by SLUG (IMPORTANT: Must be after other specific routes)
+// Get product by SLUG
 router.get('/:slug', optionalAuth, productController.getProductBySlug);
 
 // ===== ADMIN ROUTES (Protected) =====

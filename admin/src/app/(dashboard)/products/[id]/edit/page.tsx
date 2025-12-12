@@ -15,19 +15,24 @@ import toast from 'react-hot-toast';
 export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
   const [product, setProduct] = useState<Product | null>(null);
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     price: '',
+    compare_at_price: '',
     stock: '',
     category_id: '',
     brand_id: '',
+    is_flash_sale: false,
   });
+
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
@@ -42,15 +47,20 @@ export default function EditProductPage() {
   const loadProduct = async (id: number) => {
     try {
       const data = await productService.getProduct(id);
+
       setProduct(data);
+
       setFormData({
         name: data.name,
         description: data.description || '',
-        price: data.price.toString(),
-        stock: data.stock.toString(),
+        price: data.price?.toString() || '',
+        compare_at_price: data.compare_at_price?.toString() || '',
+        stock: data.stock?.toString() || '',
         category_id: data.category_id?.toString() || '',
         brand_id: data.brand_id?.toString() || '',
+        is_flash_sale: data.is_flash_sale || false,
       });
+
       setExistingImages(data.media?.map(m => m.url) || []);
     } catch (error) {
       toast.error('Failed to load product');
@@ -73,17 +83,19 @@ export default function EditProductPage() {
     }
   };
 
+  /* ---------------- IMAGE HANDLING ---------------- */
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const totalImages = existingImages.length + newImages.length + files.length;
-    
-    if (totalImages > 5) {
+    const total = existingImages.length + newImages.length + files.length;
+
+    if (total > 5) {
       toast.error('Maximum 5 images allowed');
       return;
     }
 
     setNewImages([...newImages, ...files]);
-    
+
     files.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -102,24 +114,40 @@ export default function EditProductPage() {
     setNewImagePreviews(newImagePreviews.filter((_, i) => i !== index));
   };
 
+  /* ---------------- FORM SUBMIT ---------------- */
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!product) return;
 
+    // Validasi compare at price
+    const price = parseFloat(formData.price);
+    const comparePrice = formData.compare_at_price
+      ? parseFloat(formData.compare_at_price)
+      : null;
+
+    if (comparePrice && comparePrice <= price) {
+      toast.error('Compare at price must be greater than price');
+      return;
+    }
+
     setIsSaving(true);
+
     try {
       const productData = {
         ...formData,
-        price: parseFloat(formData.price),
+        price,
+        compare_at_price: comparePrice,
         stock: parseInt(formData.stock),
         category_id: formData.category_id ? parseInt(formData.category_id) : undefined,
         brand_id: formData.brand_id ? parseInt(formData.brand_id) : undefined,
       };
 
+      // Update detail produk
       await productService.updateProduct(product.id, productData);
-      
-      // TODO: Upload new images and update image list
-      
+
+      // TODO: Upload images if your backend supports it
+
       toast.success('Product updated successfully');
       router.push('/products');
     } catch (error: any) {
@@ -128,6 +156,8 @@ export default function EditProductPage() {
       setIsSaving(false);
     }
   };
+
+  /* ---------------- UI ---------------- */
 
   if (isLoading) {
     return (
@@ -149,6 +179,7 @@ export default function EditProductPage() {
 
   return (
     <div className="space-y-6 animate-fadeIn max-w-4xl">
+
       {/* Header */}
       <div className="flex items-center space-x-4">
         <Button variant="ghost" onClick={() => router.back()}>
@@ -161,9 +192,11 @@ export default function EditProductPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Information */}
+
+        {/* Basic */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Basic Information</h2>
+
           <div className="space-y-4">
             <Input
               label="Product Name"
@@ -181,8 +214,7 @@ export default function EditProductPage() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={4}
-                className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent transition-all"
-                placeholder="Enter product description"
+                className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-lg text-white"
               />
             </div>
 
@@ -193,7 +225,7 @@ export default function EditProductPage() {
                 onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
                 options={[
                   { value: '', label: 'Select Category' },
-                  ...categories.map(cat => ({ value: cat.id.toString(), label: cat.name }))
+                  ...categories.map(cat => ({ value: cat.id.toString(), label: cat.name })),
                 ]}
               />
 
@@ -203,16 +235,17 @@ export default function EditProductPage() {
                 onChange={(e) => setFormData({ ...formData, brand_id: e.target.value })}
                 options={[
                   { value: '', label: 'Select Brand' },
-                  ...brands.map(brand => ({ value: brand.id.toString(), label: brand.name }))
+                  ...brands.map(b => ({ value: b.id.toString(), label: b.name })),
                 ]}
               />
             </div>
           </div>
         </Card>
 
-        {/* Pricing & Inventory */}
+        {/* Pricing */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Pricing & Inventory</h2>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Price (IDR)"
@@ -222,54 +255,78 @@ export default function EditProductPage() {
               required
               min="0"
               step="1000"
-              placeholder="0"
             />
 
             <Input
-              label="Stock"
+              label="Compare At Price (IDR)"
               type="number"
-              value={formData.stock}
-              onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-              required
+              value={formData.compare_at_price}
+              onChange={(e) => setFormData({ ...formData, compare_at_price: e.target.value })}
               min="0"
-              placeholder="0"
+              step="1000"
+              placeholder="Optional"
             />
+          </div>
+
+          <div className="bg-dark-800 border border-dark-700 rounded-lg p-4 mt-4">
+            <p className="text-sm text-gray-300 mb-2">
+              💡 <strong>Compare At Price:</strong> Harga asli sebelum diskon.
+            </p>
+            <p className="text-xs text-gray-400">
+              Jika diisi, harga asli dicoret dan menampilkan persentase diskon.
+            </p>
+          </div>
+
+          <Input
+            label="Stock"
+            type="number"
+            value={formData.stock}
+            onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+            required
+            min="0"
+            className="mt-4"
+          />
+
+          <div className="flex items-center space-x-3 p-4 mt-4 bg-dark-800 border border-dark-700 rounded-lg">
+            <input
+              type="checkbox"
+              id="is_flash_sale"
+              checked={formData.is_flash_sale}
+              onChange={(e) => setFormData({ ...formData, is_flash_sale: e.target.checked })}
+            />
+            <label htmlFor="is_flash_sale" className="text-white cursor-pointer">
+              ⚡ Mark as Flash Sale Product
+            </label>
           </div>
         </Card>
 
-        {/* Product Images */}
+        {/* Images */}
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Product Images</h2>
+
           <div className="space-y-4">
             {(existingImages.length > 0 || newImagePreviews.length > 0) && (
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 {existingImages.map((url, index) => (
-                  <div key={`existing-${index}`} className="relative group">
-                    <img
-                      src={url}
-                      alt={`Product ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg"
-                    />
+                  <div key={`exist-${index}`} className="relative group">
+                    <img src={url} className="w-full h-32 object-cover rounded-lg" />
                     <button
                       type="button"
                       onClick={() => removeExistingImage(index)}
-                      className="absolute top-2 right-2 p-1 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-2 right-2 bg-red-500 p-1 rounded-full opacity-0 group-hover:opacity-100"
                     >
                       <X className="w-4 h-4 text-white" />
                     </button>
                   </div>
                 ))}
+
                 {newImagePreviews.map((preview, index) => (
                   <div key={`new-${index}`} className="relative group">
-                    <img
-                      src={preview}
-                      alt={`New ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg"
-                    />
+                    <img src={preview} className="w-full h-32 object-cover rounded-lg" />
                     <button
                       type="button"
                       onClick={() => removeNewImage(index)}
-                      className="absolute top-2 right-2 p-1 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-2 right-2 bg-red-500 p-1 rounded-full opacity-0 group-hover:opacity-100"
                     >
                       <X className="w-4 h-4 text-white" />
                     </button>
@@ -282,20 +339,20 @@ export default function EditProductPage() {
             )}
 
             {totalImages < 5 && (
-              <div className="border-2 border-dashed border-dark-700 rounded-lg p-8 text-center hover:border-dark-600 transition-colors">
+              <div className="border-2 border-dashed border-dark-700 rounded-lg p-8 text-center cursor-pointer">
                 <input
+                  id="image-upload"
                   type="file"
                   accept="image/*"
                   multiple
                   onChange={handleImageChange}
                   className="hidden"
-                  id="image-upload"
                 />
-                <label htmlFor="image-upload" className="cursor-pointer">
+                <label htmlFor="image-upload">
                   <Upload className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                   <p className="text-gray-400">Click to upload images</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    PNG, JPG up to 5 images ({5 - totalImages} remaining)
+                  <p className="text-sm text-gray-500">
+                    PNG, JPG up to {5 - totalImages} remaining
                   </p>
                 </label>
               </div>
@@ -303,20 +360,19 @@ export default function EditProductPage() {
           </div>
         </Card>
 
-        {/* Actions */}
+        {/* Save */}
         <div className="flex justify-end space-x-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-          >
+          <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
           </Button>
+
           <Button type="submit" isLoading={isSaving}>
             Update Product
           </Button>
         </div>
+
       </form>
+
     </div>
   );
 }
