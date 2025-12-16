@@ -92,6 +92,7 @@ export interface ProductFilters {
   brand_id?: number;
   min_price?: number;
   max_price?: number;
+  is_flash_sale?: boolean;
 }
 
 // Cart Types

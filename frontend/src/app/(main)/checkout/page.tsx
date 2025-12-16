@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Tag, X } from 'lucide-react';
+import { Tag, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useCartStore } from '@/lib/store/cart.store';
@@ -13,6 +13,7 @@ import { voucherService } from '@/lib/services/voucher.service';
 import { formatCurrency } from '@/lib/utils/format';
 import { PAYMENT_METHODS, SHIPPING_COST } from '@/lib/utils/constants';
 import { BankTransferModal, CreditCardModal, EWalletModal, CODModal } from '@/components/payment/PaymentModals';
+import { VoucherModal } from '@/components/voucher/VoucherModal';
 import toast from 'react-hot-toast';
 import type { CartItem } from '@/types';
 import type { Voucher } from '@/types/voucher';
@@ -26,9 +27,8 @@ export default function CheckoutPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   
   // Voucher states
-  const [voucherCode, setVoucherCode] = useState('');
+  const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
-  const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -54,35 +54,27 @@ export default function CheckoutPage() {
   // Calculate total
   const total = subtotal - discount + shipping;
 
-  const handleApplyVoucher = async () => {
-    if (!voucherCode.trim()) {
-      toast.error('Please enter voucher code');
-      return;
-    }
-
-    setIsApplyingVoucher(true);
+  const handleApplyVoucher = async (voucher: Voucher) => {
     try {
       const result = await voucherService.applyVoucher({
-        code: voucherCode.trim(),
+        code: voucher.code,
         subtotal,
       });
 
       if (result.valid && result.voucher) {
         setAppliedVoucher(result.voucher);
+        setShowVoucherModal(false);
         toast.success('Voucher applied successfully!');
       } else {
         toast.error(result.message);
       }
     } catch (error) {
       toast.error('Failed to apply voucher');
-    } finally {
-      setIsApplyingVoucher(false);
     }
   };
 
   const handleRemoveVoucher = () => {
     setAppliedVoucher(null);
-    setVoucherCode('');
     toast.success('Voucher removed');
   };
 
@@ -179,14 +171,14 @@ export default function CheckoutPage() {
           <div className="bg-white rounded-lg border p-6">
             <h2 className="text-xl text-black font-semibold mb-4 flex items-center gap-2">
               <Tag className="w-5 h-5" />
-              Apply Voucher
+              Voucher
             </h2>
 
             {appliedVoucher ? (
-              <div className="bg-gray-300 border border-gray-500 rounded-lg p-4">
+              <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <p className="font-semibold text-gray-600">{appliedVoucher.name}</p>
+                    <p className="font-semibold text-gray-900">{appliedVoucher.name}</p>
                     <p className="text-sm text-gray-600">
                       Code: <code className="font-mono font-bold">{appliedVoucher.code}</code>
                     </p>
@@ -204,27 +196,13 @@ export default function CheckoutPage() {
                 </p>
               </div>
             ) : (
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  placeholder="Enter voucher code"
-                  value={voucherCode}
-                  onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                  className="flex-1 text-black"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleApplyVoucher();
-                    }
-                  }}
-                />
-                <Button
-                  onClick={handleApplyVoucher}
-                  isLoading={isApplyingVoucher}
-                  disabled={!voucherCode.trim()}
-                >
-                  Use Voucher
-                </Button>
-              </div>
+              <button
+                onClick={() => setShowVoucherModal(true)}
+                className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-gray-400 hover:bg-gray-50 transition-all flex items-center justify-center gap-2 text-gray-600 font-medium"
+              >
+                <Plus className="w-5 h-5" />
+                Select or Enter Voucher
+              </button>
             )}
           </div>
 
@@ -295,6 +273,14 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      {/* Voucher Modal */}
+      <VoucherModal
+        isOpen={showVoucherModal}
+        onClose={() => setShowVoucherModal(false)}
+        onApply={handleApplyVoucher}
+        subtotal={subtotal}
+      />
 
       {/* Payment Modals */}
       <BankTransferModal

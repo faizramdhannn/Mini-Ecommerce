@@ -122,42 +122,37 @@ export default function HomePage() {
     loadFeaturedProducts();
   }, []);
 
-  const loadFlashSaleProducts = async () => {
-    try {
-      setIsLoadingFlashSale(true);
-      const response = await productService.getProducts({ limit: 100 });
-      
-      // Filter products dengan diskon >= 30%
-      const flashSale = response.data.filter(product => {
-        const hasDiscount = product.compare_at_price && product.compare_at_price > product.price;
-        if (!hasDiscount) return false;
-        
-        const discountPercentage = Math.round(
-          ((product.compare_at_price! - product.price) / product.compare_at_price!) * 100
-        );
-        
-        return discountPercentage >= 30;
-      });
+const loadFlashSaleProducts = async () => {
+  try {
+    setIsLoadingFlashSale(true);
+    const response = await productService.getProducts({ 
+      limit: 100,
+      is_flash_sale: true // Filter berdasarkan flag di database
+    });
+    
+    // Ambil produk yang is_flash_sale === true
+    const flashSale = response.data.filter(product => product.is_flash_sale);
 
-      // Sort by discount percentage (highest first)
-      flashSale.sort((a, b) => {
-        const discountA = a.compare_at_price 
-          ? ((a.compare_at_price - a.price) / a.compare_at_price) * 100 
-          : 0;
-        const discountB = b.compare_at_price 
-          ? ((b.compare_at_price - b.price) / b.compare_at_price) * 100 
-          : 0;
-        return discountB - discountA;
-      });
+    // Sort by discount percentage (highest first)
+    flashSale.sort((a, b) => {
+      const discountA = a.compare_at_price 
+        ? ((a.compare_at_price - a.price) / a.compare_at_price) * 100 
+        : 0;
+      const discountB = b.compare_at_price 
+        ? ((b.compare_at_price - b.price) / b.compare_at_price) * 100 
+        : 0;
+      return discountB - discountA;
+    });
 
-      setFlashSaleProducts(flashSale.slice(0, 10)); // Ambil 10 produk teratas
-    } catch (error) {
-      console.error('Failed to load flash sale products:', error);
-      setFlashSaleProducts([]);
-    } finally {
-      setIsLoadingFlashSale(false);
-    }
-  };
+    setFlashSaleProducts(flashSale.slice(0, 10));
+  } catch (error) {
+    console.error('Failed to load flash sale products:', error);
+    setFlashSaleProducts([]);
+  } finally {
+    setIsLoadingFlashSale(false);
+  }
+};
+
 
   const loadFeaturedProducts = async () => {
     try {

@@ -20,7 +20,7 @@ class ProductService {
    */
   async getProduct(id: number): Promise<Product> {
     const response = await apiClient.get<{ data: Product }>(
-      `/products/${id}` // Ini akan hit backend endpoint yang benar
+      `/products/${id}`// Ini akan hit backend endpoint yang benar
     );
     return response.data.data;
   }
