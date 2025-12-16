@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card } from '../ui/Card';
-import { dashboardService } from '@/lib/services/dashboard.service';
+import apiClient from '@/lib/api/client';
 
 interface SalesData {
   date: string;
@@ -20,20 +20,10 @@ export const SalesChart = () => {
 
   const loadSalesData = async () => {
     try {
-      const salesData = await dashboardService.getSalesChart();
-      setData(salesData);
+      const response = await apiClient.get('/dashboard/sales-chart');
+      setData(response.data.data);
     } catch (error) {
       console.error('Failed to load sales data:', error);
-      // Mock data for demo
-      setData([
-        { date: 'Mon', sales: 2400 },
-        { date: 'Tue', sales: 1398 },
-        { date: 'Wed', sales: 9800 },
-        { date: 'Thu', sales: 3908 },
-        { date: 'Fri', sales: 4800 },
-        { date: 'Sat', sales: 3800 },
-        { date: 'Sun', sales: 4300 },
-      ]);
     } finally {
       setIsLoading(false);
     }
@@ -41,10 +31,12 @@ export const SalesChart = () => {
 
   return (
     <Card className="p-6">
-      <h2 className="text-xl font-bold text-white mb-6">Sales Overview</h2>
+      <h2 className="text-xl font-bold text-white mb-6">Sales Overview (Last 7 Days)</h2>
       
       {isLoading ? (
         <div className="text-center py-20 text-gray-400">Loading...</div>
+      ) : data.length === 0 ? (
+        <div className="text-center py-20 text-gray-400">No sales data available</div>
       ) : (
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data}>
@@ -57,6 +49,7 @@ export const SalesChart = () => {
             <YAxis 
               stroke="#666"
               tick={{ fill: '#999' }}
+              tickFormatter={(value) => `Rp ${(value / 1000).toFixed(0)}k`}
             />
             <Tooltip
               contentStyle={{

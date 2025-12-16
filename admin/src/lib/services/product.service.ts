@@ -3,6 +3,9 @@ import { API_ENDPOINTS } from '../api/endpoints';
 import type { Product, ProductFilters, PaginatedResponse } from '@/types';
 
 class ProductService {
+  /**
+   * Get products list (for listing page)
+   */
   async getProducts(filters?: ProductFilters): Promise<PaginatedResponse<Product>> {
     const response = await apiClient.get<PaginatedResponse<Product>>(
       API_ENDPOINTS.PRODUCTS.LIST,
@@ -11,15 +14,21 @@ class ProductService {
     return response.data;
   }
 
+  /**
+   * Get product by ID (for admin edit - FIXED!)
+   * Backend route: GET /api/products/:id (ini route admin, bukan public)
+   */
   async getProduct(id: number): Promise<Product> {
     const response = await apiClient.get<{ data: Product }>(
-      API_ENDPOINTS.PRODUCTS.DETAIL(id)
+      `/products/${id}` // Ini akan hit backend endpoint yang benar
     );
     return response.data.data;
   }
 
+  /**
+   * Create product
+   */
   async createProduct(data: Partial<Product>): Promise<Product> {
-    // Clean data before sending
     const cleanData = {
       name: data.name,
       description: data.description,
@@ -27,7 +36,6 @@ class ProductService {
       stock: data.stock,
       category_id: data.category_id,
       brand_id: data.brand_id,
-      // NEW FIELDS
       compare_at_price: data.compare_at_price || null,
       is_flash_sale: data.is_flash_sale || false,
       flash_sale_end: data.flash_sale_end || null,
@@ -40,8 +48,10 @@ class ProductService {
     return response.data.data;
   }
 
+  /**
+   * Update product
+   */
   async updateProduct(id: number, data: Partial<Product>): Promise<Product> {
-    // Clean data before sending
     const cleanData = {
       name: data.name,
       description: data.description,
@@ -49,7 +59,6 @@ class ProductService {
       stock: data.stock,
       category_id: data.category_id,
       brand_id: data.brand_id,
-      // NEW FIELDS
       compare_at_price: data.compare_at_price || null,
       is_flash_sale: data.is_flash_sale || false,
       flash_sale_end: data.flash_sale_end || null,
@@ -62,10 +71,16 @@ class ProductService {
     return response.data.data;
   }
 
+  /**
+   * Delete product
+   */
   async deleteProduct(id: number): Promise<void> {
     await apiClient.delete(API_ENDPOINTS.PRODUCTS.DELETE(id));
   }
 
+  /**
+   * Get categories
+   */
   async getCategories() {
     const response = await apiClient.get<{ data: any[] }>(
       API_ENDPOINTS.PRODUCTS.CATEGORIES
@@ -73,6 +88,9 @@ class ProductService {
     return response.data.data;
   }
 
+  /**
+   * Get brands
+   */
   async getBrands() {
     const response = await apiClient.get<{ data: any[] }>(
       API_ENDPOINTS.PRODUCTS.BRANDS

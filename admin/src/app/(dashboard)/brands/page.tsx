@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Table } from '@/components/ui/Table';
 import { Modal } from '@/components/ui/Modal';
-import { productService } from '@/lib/services/product.service';
+import apiClient from '@/lib/api/client';
 import toast from 'react-hot-toast';
 
 interface Brand {
@@ -14,7 +14,7 @@ interface Brand {
   name: string;
   slug: string;
   description?: string;
-  created_at: string;
+  created_at?: string;
 }
 
 export default function BrandsPage() {
@@ -24,6 +24,7 @@ export default function BrandsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '' });
+  const [isSaving, setIsSaving] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; brandId: number | null }>({
     isOpen: false,
     brandId: null,
@@ -35,8 +36,8 @@ export default function BrandsPage() {
 
   const loadBrands = async () => {
     try {
-      const data = await productService.getBrands();
-      setBrands(data);
+      const response = await apiClient.get('/admin/brands');
+      setBrands(response.data.data);
     } catch (error) {
       toast.error('Failed to load brands');
     } finally {
@@ -46,20 +47,27 @@ export default function BrandsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
+
     try {
       if (editingBrand) {
-        // Update brand logic
+        // Update brand
+        await apiClient.put(`/admin/brands/${editingBrand.id}`, formData);
         toast.success('Brand updated successfully');
       } else {
-        // Create brand logic
+        // Create brand
+        await apiClient.post('/admin/brands', formData);
         toast.success('Brand created successfully');
       }
+      
       setIsModalOpen(false);
       setEditingBrand(null);
       setFormData({ name: '', description: '' });
       loadBrands();
-    } catch (error) {
-      toast.error('Failed to save brand');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to save brand');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -71,13 +79,14 @@ export default function BrandsPage() {
 
   const handleDelete = async () => {
     if (!deleteModal.brandId) return;
+    
     try {
-      // Delete brand logic
+      await apiClient.delete(`/admin/brands/${deleteModal.brandId}`);
       toast.success('Brand deleted successfully');
       setDeleteModal({ isOpen: false, brandId: null });
       loadBrands();
-    } catch (error) {
-      toast.error('Failed to delete brand');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete brand');
     }
   };
 
@@ -130,7 +139,11 @@ export default function BrandsPage() {
           <h1 className="text-3xl font-bold text-white mb-2">Brands</h1>
           <p className="text-gray-400">Manage product brands</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
+        <Button onClick={() => {
+          setEditingBrand(null);
+          setFormData({ name: '', description: '' });
+          setIsModalOpen(true);
+        }}>
           <Plus className="w-4 h-4 mr-2" />
           Add Brand
         </Button>
@@ -169,12 +182,20 @@ export default function BrandsPage() {
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             required
+            placeholder="e.g., Apple, Samsung"
           />
-          <Input
-            label="Description"
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">
+              Description (Optional)
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={3}
+              className="w-full px-4 py-2.5 bg-dark-900 border border-dark-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent transition-all"
+              placeholder="Brief description of the brand"
+            />
+          </div>
           <div className="flex justify-end space-x-3">
             <Button
               type="button"
@@ -183,7 +204,7 @@ export default function BrandsPage() {
             >
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" isLoading={isSaving}>
               {editingBrand ? 'Update' : 'Create'}
             </Button>
           </div>

@@ -2,28 +2,42 @@ import apiClient from '../api/client';
 
 class DashboardService {
   async getStats() {
-    // Mock data - replace with actual API call
-    return {
-      totalProducts: 125,
-      totalOrders: 48,
-      totalCustomers: 324,
-      totalRevenue: 45678000,
-      revenueChange: 12.5,
-      ordersChange: 8.3,
-    };
+    try {
+      const response = await apiClient.get('/dashboard/stats');
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats:', error);
+      // Return default values on error
+      return {
+        totalProducts: 0,
+        totalOrders: 0,
+        totalCustomers: 0,
+        totalRevenue: 0,
+        revenueChange: 0,
+        ordersChange: 0,
+      };
+    }
   }
 
   async getSalesChart() {
-    // Mock data - replace with actual API call
-    return [
-      { date: 'Mon', sales: 2400000 },
-      { date: 'Tue', sales: 1398000 },
-      { date: 'Wed', sales: 9800000 },
-      { date: 'Thu', sales: 3908000 },
-      { date: 'Fri', sales: 4800000 },
-      { date: 'Sat', sales: 3800000 },
-      { date: 'Sun', sales: 4300000 },
-    ];
+    try {
+      const response = await apiClient.get('/dashboard/sales-chart');
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to fetch sales chart:', error);
+      // Return empty array on error
+      return [];
+    }
+  }
+
+  async getRecentOrders() {
+    try {
+      const response = await apiClient.get('/dashboard/recent-orders');
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to fetch recent orders:', error);
+      return [];
+    }
   }
 }
 

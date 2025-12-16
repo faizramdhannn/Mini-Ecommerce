@@ -1,13 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Package, ShoppingCart, Users, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
+import { Package, ShoppingCart, Users, DollarSign } from 'lucide-react';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { RecentOrders } from '@/components/dashboard/RecentOrders';
 import { SalesChart } from '@/components/dashboard/SalesChart';
-import { Card } from '@/components/ui/Card';
-import { dashboardService } from '@/lib/services/dashboard.service';
 import { Spinner } from '@/components/ui/Spinner';
+import apiClient from '@/lib/api/client';
 
 interface DashboardStats {
   totalProducts: number;
@@ -28,8 +27,8 @@ export default function DashboardPage() {
 
   const loadDashboardData = async () => {
     try {
-      const data = await dashboardService.getStats();
-      setStats(data);
+      const response = await apiClient.get('/dashboard/stats');
+      setStats(response.data.data);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {

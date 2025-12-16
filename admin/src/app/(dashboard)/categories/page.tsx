@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Table } from '@/components/ui/Table';
 import { Modal } from '@/components/ui/Modal';
-import { productService } from '@/lib/services/product.service';
+import apiClient from '@/lib/api/client';
 import toast from 'react-hot-toast';
 
 interface Category {
@@ -23,6 +23,7 @@ export default function CategoriesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState({ name: '' });
+  const [isSaving, setIsSaving] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; categoryId: number | null }>({
     isOpen: false,
     categoryId: null,
@@ -34,8 +35,8 @@ export default function CategoriesPage() {
 
   const loadCategories = async () => {
     try {
-      const data = await productService.getCategories();
-      setCategories(data);
+      const response = await apiClient.get('/admin/categories');
+      setCategories(response.data.data);
     } catch (error) {
       toast.error('Failed to load categories');
     } finally {
@@ -45,18 +46,27 @@ export default function CategoriesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
+
     try {
       if (editingCategory) {
+        // Update category
+        await apiClient.put(`/admin/categories/${editingCategory.id}`, formData);
         toast.success('Category updated successfully');
       } else {
+        // Create category
+        await apiClient.post('/admin/categories', formData);
         toast.success('Category created successfully');
       }
+      
       setIsModalOpen(false);
       setEditingCategory(null);
       setFormData({ name: '' });
       loadCategories();
-    } catch (error) {
-      toast.error('Failed to save category');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to save category');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -68,12 +78,14 @@ export default function CategoriesPage() {
 
   const handleDelete = async () => {
     if (!deleteModal.categoryId) return;
+    
     try {
+      await apiClient.delete(`/admin/categories/${deleteModal.categoryId}`);
       toast.success('Category deleted successfully');
       setDeleteModal({ isOpen: false, categoryId: null });
       loadCategories();
-    } catch (error) {
-      toast.error('Failed to delete category');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete category');
     }
   };
 
@@ -119,7 +131,11 @@ export default function CategoriesPage() {
           <h1 className="text-3xl font-bold text-white mb-2">Categories</h1>
           <p className="text-gray-400">Manage product categories</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
+        <Button onClick={() => {
+          setEditingCategory(null);
+          setFormData({ name: '' });
+          setIsModalOpen(true);
+        }}>
           <Plus className="w-4 h-4 mr-2" />
           Add Category
         </Button>
@@ -168,7 +184,7 @@ export default function CategoriesPage() {
             >
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" isLoading={isSaving}>
               {editingCategory ? 'Update' : 'Create'}
             </Button>
           </div>

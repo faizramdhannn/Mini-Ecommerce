@@ -1,10 +1,13 @@
-// backend/src/routes/index.js - FINAL VERSION
+// backend/src/routes/index.js - UPDATED VERSION
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const validate = require('../middlewares/validate');
 const authController = require('../controllers/auth.controller');
-const { authenticate } = require('../middlewares/auth');
+const categoryController = require('../controllers/category.controller');
+const brandController = require('../controllers/brand.controller');
+const dashboardController = require('../controllers/dashboard.controller');
+const { authenticate, requireAdmin } = require('../middlewares/auth');
 
 // Import route modules
 const userRoutes = require('./user.routes');
@@ -29,6 +32,17 @@ const loginValidation = [
   validate
 ];
 
+// Category/Brand validation
+const categoryValidation = [
+  body('name').notEmpty().withMessage('Category name is required'),
+  validate
+];
+
+const brandValidation = [
+  body('name').notEmpty().withMessage('Brand name is required'),
+  validate
+];
+
 // Root
 router.get('/', (req, res) => {
   res.json({
@@ -39,7 +53,8 @@ router.get('/', (req, res) => {
       products: 'GET /api/products',
       search: 'GET /api/search?q=keyword',
       categories: 'GET /api/categories/:slug/products',
-      brands: 'GET /api/brands/:slug/products'
+      brands: 'GET /api/brands/:slug/products',
+      dashboard: 'GET /api/dashboard/stats'
     }
   });
 });
@@ -50,10 +65,29 @@ router.post('/auth/login', loginValidation, authController.login);
 router.post('/auth/logout', authenticate, authController.logout);
 router.get('/auth/profile', authenticate, authController.getProfile);
 
+// Dashboard routes (admin only)
+router.get('/dashboard/stats', authenticate, requireAdmin, dashboardController.getStats);
+router.get('/dashboard/sales-chart', authenticate, requireAdmin, dashboardController.getSalesChart);
+router.get('/dashboard/recent-orders', authenticate, requireAdmin, dashboardController.getRecentOrders);
+
+// Admin Category CRUD routes
+router.get('/admin/categories', authenticate, requireAdmin, categoryController.getAllCategories);
+router.get('/admin/categories/:id', authenticate, requireAdmin, categoryController.getCategoryById);
+router.post('/admin/categories', authenticate, requireAdmin, categoryValidation, categoryController.createCategory);
+router.put('/admin/categories/:id', authenticate, requireAdmin, categoryValidation, categoryController.updateCategory);
+router.delete('/admin/categories/:id', authenticate, requireAdmin, categoryController.deleteCategory);
+
+// Admin Brand CRUD routes
+router.get('/admin/brands', authenticate, requireAdmin, brandController.getAllBrands);
+router.get('/admin/brands/:id', authenticate, requireAdmin, brandController.getBrandById);
+router.post('/admin/brands', authenticate, requireAdmin, brandValidation, brandController.createBrand);
+router.put('/admin/brands/:id', authenticate, requireAdmin, brandValidation, brandController.updateBrand);
+router.delete('/admin/brands/:id', authenticate, requireAdmin, brandController.deleteBrand);
+
 // Module routes - IMPORTANT: Order matters!
 router.use('/search', searchRoutes);      // 1. Search first
-router.use('/categories', categoryRoutes); // 2. Category routes
-router.use('/brands', brandRoutes);        // 3. Brand routes
+router.use('/categories', categoryRoutes); // 2. Category routes (public)
+router.use('/brands', brandRoutes);        // 3. Brand routes (public)
 router.use('/products', productRoutes);    // 4. Products (includes /products/categories and /products/brands)
 router.use('/users', userRoutes);
 router.use('/orders', orderRoutes);
