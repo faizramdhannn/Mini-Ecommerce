@@ -9,15 +9,17 @@ import { useCartStore } from '@/lib/store/cart.store';
 import { useAuthStore } from '@/lib/store/auth.store';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 interface ProductCardProps {
   product: Product;
 }
 
 export const ProductCard = ({ product }: ProductCardProps) => {
-  const { addItem } = useCartStore();
+  const { addItem, openCart } = useCartStore();
   const { isAuthenticated } = useAuthStore();
   const router = useRouter();
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const getProductSlug = () => {
     if (product.slug) return product.slug;
@@ -34,8 +36,17 @@ export const ProductCard = ({ product }: ProductCardProps) => {
     }
 
     try {
+      // Trigger animation
+      setIsAnimating(true);
+      setTimeout(() => setIsAnimating(false), 800);
+
       await addItem(product.id, 1);
       toast.success('Added to cart!');
+      
+      // Open cart drawer after short delay
+      setTimeout(() => {
+        openCart();
+      }, 300);
     } catch (error) {
       toast.error('Failed to add to cart');
     }
@@ -48,13 +59,20 @@ export const ProductCard = ({ product }: ProductCardProps) => {
     ? Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100)
     : 0;
 
+  // Determine if this is a flash sale item (discount >= 30%)
+  const isFlashSale = discountPercentage >= 30;
+
+  // Calculate sold count (simulate 30-70% sold)
+  const soldPercentage = Math.floor(Math.random() * 40) + 30;
+  const soldCount = Math.floor(product.stock * soldPercentage / 100);
+
   return (
     <Link href={`/products/${getProductSlug()}`} className="group block h-full">
       <div className="bg-white rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg border border-gray-100 h-full flex flex-col relative">
         
-        {/* Flash Sale Badge */}
-        {product.is_flash_sale && (
-          <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-600 to-orange-600 text-white px-2 py-1 rounded-full flex items-center gap-1 text-xs font-bold shadow-lg">
+        {/* Flash Sale Badge - only show if discount >= 30% */}
+        {isFlashSale && (
+          <div className="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-600 to-orange-600 text-white px-2 py-1 rounded-full flex items-center gap-1 text-xs font-bold shadow-lg animate-pulse">
             <Zap className="w-3 h-3 fill-current" />
             FLASH SALE
           </div>
@@ -67,13 +85,15 @@ export const ProductCard = ({ product }: ProductCardProps) => {
           </div>
         )}
 
-        {/* Image */}
+        {/* Image with animation */}
         <div className="relative aspect-square overflow-hidden bg-gray-100">
           <Image
             src={imageUrl}
             alt={product.name}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            className={`object-cover group-hover:scale-105 transition-transform duration-300 ${
+              isAnimating ? 'animate-fly-to-cart' : ''
+            }`}
           />
           {product.stock === 0 && (
             <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
@@ -98,6 +118,13 @@ export const ProductCard = ({ product }: ProductCardProps) => {
             {product.name}
           </h3>
 
+          {/* Sold Count - Show instead of stock */}
+          {soldCount > 0 && (
+            <p className="text-xs text-gray-500 mb-2">
+              🔥 Terjual {soldCount}+
+            </p>
+          )}
+
           {/* Price Section */}
           <div className="mt-auto pt-2">
             <div className="mb-2">
@@ -108,9 +135,11 @@ export const ProductCard = ({ product }: ProductCardProps) => {
                 </div>
               )}
               
-              {/* Current Price */}
+              {/* Current Price - Red for flash sale, black for normal */}
               <div className={`font-bold ${
-                product.compare_at_price ? 'text-red-600 text-lg sm:text-xl' : 'text-gray-900 text-base sm:text-lg'
+                isFlashSale 
+                  ? 'text-red-600 text-lg sm:text-xl' 
+                  : 'text-gray-900 text-base sm:text-lg'
               }`}>
                 {formatCurrency(product.price)}
               </div>
@@ -120,7 +149,13 @@ export const ProductCard = ({ product }: ProductCardProps) => {
             <button
               onClick={handleAddToCart}
               disabled={product.stock === 0}
-              className="w-full flex items-center justify-center gap-2 p-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-sm"
+              className={`w-full flex items-center justify-center gap-2 p-2 rounded-lg transition-all text-sm ${
+                isFlashSale
+                  ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white hover:from-red-700 hover:to-orange-700'
+                  : 'bg-black text-white hover:bg-gray-800'
+              } disabled:bg-gray-300 disabled:cursor-not-allowed ${
+                isAnimating ? 'scale-95' : ''
+              }`}
               aria-label="Add to cart"
             >
               <ShoppingCart className="w-4 h-4" />
@@ -129,6 +164,25 @@ export const ProductCard = ({ product }: ProductCardProps) => {
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes flyToCart {
+          0% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(0.8);
+          }
+          100% {
+            transform: scale(1) translateX(100vw) translateY(-100vh);
+            opacity: 0;
+          }
+        }
+
+        :global(.animate-fly-to-cart) {
+          animation: flyToCart 0.8s ease-in-out;
+        }
+      `}</style>
     </Link>
   );
 };

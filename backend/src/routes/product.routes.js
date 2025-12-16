@@ -38,7 +38,10 @@ router.get('/categories', productController.getAllCategories);
 // Get all brands
 router.get('/brands', productController.getAllBrands);
 
-// Get all products with filters
+// ⚡ NEW: Get flash sale products ONLY - MUST BE BEFORE /:slug
+router.get('/flash-sale', optionalAuth, productController.getFlashSaleProducts);
+
+// Get all products with filters (excludes flash sale by default)
 router.get('/', optionalAuth, productController.getAllProducts);
 
 // Get product by SLUG

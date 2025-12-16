@@ -14,7 +14,6 @@ export const FlashSaleBanner = () => {
 
   // Countdown timer
   useEffect(() => {
-    // Set flash sale end time (contoh: 24 jam dari sekarang)
     const flashSaleEnd = new Date();
     flashSaleEnd.setHours(23, 59, 59, 999);
 
@@ -53,45 +52,43 @@ export const FlashSaleBanner = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-2.5 relative z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-1">
-            {/* Flash Icon */}
-            <div className="flex items-center gap-2 animate-pulse">
-              <Zap className="w-5 h-5 fill-current" />
-              <span className="font-bold text-sm sm:text-base">FLASH SALE</span>
-            </div>
+        <div className="flex items-center justify-center gap-3">
+          {/* Flash Icon */}
+          <div className="flex items-center gap-2 animate-pulse">
+            <Zap className="w-5 h-5 fill-current" />
+            <span className="font-bold text-sm sm:text-base">FLASH SALE</span>
+          </div>
 
-            {/* Countdown */}
-            <div className="hidden sm:flex items-center gap-2 text-sm">
-              <span>Berakhir dalam:</span>
-              <div className="flex items-center gap-1">
-                <div className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded font-bold min-w-[32px] text-center">
-                  {String(timeLeft.hours).padStart(2, '0')}
-                </div>
-                <span>:</span>
-                <div className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded font-bold min-w-[32px] text-center">
-                  {String(timeLeft.minutes).padStart(2, '0')}
-                </div>
-                <span>:</span>
-                <div className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded font-bold min-w-[32px] text-center">
-                  {String(timeLeft.seconds).padStart(2, '0')}
-                </div>
+          {/* Countdown - Desktop */}
+          <div className="hidden sm:flex items-center gap-2 text-sm">
+            <span>Berakhir dalam:</span>
+            <div className="flex items-center gap-1">
+              <div className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded font-bold min-w-[32px] text-center">
+                {String(timeLeft.hours).padStart(2, '0')}
+              </div>
+              <span>:</span>
+              <div className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded font-bold min-w-[32px] text-center">
+                {String(timeLeft.minutes).padStart(2, '0')}
+              </div>
+              <span>:</span>
+              <div className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded font-bold min-w-[32px] text-center">
+                {String(timeLeft.seconds).padStart(2, '0')}
               </div>
             </div>
-
-            {/* CTA */}
-            <Link 
-              href="/flash-sale" 
-              className="ml-auto sm:ml-4 bg-white text-red-600 px-4 py-1.5 rounded-full font-bold text-xs sm:text-sm hover:bg-gray-100 transition-colors shadow-lg"
-            >
-              BELANJA SEKARANG →
-            </Link>
           </div>
+
+          {/* CTA */}
+          <Link 
+            href="/flash-sale" 
+            className="bg-white text-red-600 px-4 py-1.5 rounded-full font-bold text-xs sm:text-sm hover:bg-gray-100 transition-colors shadow-lg"
+          >
+            BELANJA SEKARANG →
+          </Link>
 
           {/* Close Button */}
           <button
             onClick={() => setIsVisible(false)}
-            className="ml-3 p-1 hover:bg-white/20 rounded-full transition-colors"
+            className="p-1 hover:bg-white/20 rounded-full transition-colors absolute right-4"
             aria-label="Close banner"
           >
             <X className="w-4 h-4" />

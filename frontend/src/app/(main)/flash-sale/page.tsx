@@ -6,6 +6,13 @@ import { ProductGrid } from '@/components/product/ProductGrid';
 import { Spinner } from '@/components/ui/Spinner';
 import { productService } from '@/lib/services/product.service';
 import type { Product } from '@/types';
+import Link from 'next/link';
+import Image from 'next/image';
+import { formatCurrency } from '@/lib/utils/format';
+import { useCartStore } from '@/lib/store/cart.store';
+import { useAuthStore } from '@/lib/store/auth.store';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 export default function FlashSalePage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -15,6 +22,9 @@ export default function FlashSalePage() {
     minutes: 0,
     seconds: 0,
   });
+  const { addItem, openCart } = useCartStore();
+  const { isAuthenticated } = useAuthStore();
+  const router = useRouter();
 
   useEffect(() => {
     loadFlashSaleProducts();
@@ -45,10 +55,11 @@ export default function FlashSalePage() {
 
   const loadFlashSaleProducts = async () => {
     try {
-      // Filter products dengan is_flash_sale = true dan diskon >= 30%
+      setIsLoading(true);
       const response = await productService.getProducts({ limit: 100 });
       
-      const flashSaleProducts = response.data.filter(product => {
+      // Filter products dengan diskon >= 30%
+      const flashSale = response.data.filter(product => {
         const hasDiscount = product.compare_at_price && product.compare_at_price > product.price;
         if (!hasDiscount) return false;
         
@@ -56,11 +67,11 @@ export default function FlashSalePage() {
           ((product.compare_at_price! - product.price) / product.compare_at_price!) * 100
         );
         
-        return discountPercentage >= 30; // Diskon minimal 30%
+        return discountPercentage >= 30;
       });
 
       // Sort by discount percentage (highest first)
-      flashSaleProducts.sort((a, b) => {
+      flashSale.sort((a, b) => {
         const discountA = a.compare_at_price 
           ? ((a.compare_at_price - a.price) / a.compare_at_price) * 100 
           : 0;
@@ -70,12 +81,49 @@ export default function FlashSalePage() {
         return discountB - discountA;
       });
 
-      setProducts(flashSaleProducts);
+      setProducts(flashSale);
     } catch (error) {
       console.error('Failed to load flash sale products:', error);
+      setProducts([]);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleAddToCart = async (product: Product, e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    if (!isAuthenticated) {
+      toast.error('Please login to add items to cart');
+      router.push('/login');
+      return;
+    }
+
+    try {
+      await addItem(product.id, 1);
+      toast.success('Added to cart!');
+      setTimeout(() => {
+        openCart();
+      }, 300);
+    } catch (error) {
+      toast.error('Failed to add to cart');
+    }
+  };
+
+  const getProductSlug = (product: Product) => {
+    return product.slug || product.name.toLowerCase().replace(/\s+/g, '-');
+  };
+
+  const calculateDiscount = (product: Product) => {
+    if (!product.compare_at_price || product.compare_at_price <= product.price) return 0;
+    return Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100);
+  };
+
+  // Calculate remaining stock (simulate sold percentage)
+  const getRemainingStock = (product: Product) => {
+    // Simulate 30-70% already sold
+    const soldPercentage = Math.floor(Math.random() * 40) + 30;
+    return Math.max(1, Math.floor(product.stock * (100 - soldPercentage) / 100));
   };
 
   return (
@@ -142,7 +190,86 @@ export default function FlashSalePage() {
                 Menampilkan <span className="font-bold text-white">{products.length}</span> produk dengan diskon besar
               </p>
             </div>
-            <ProductGrid products={products} />
+
+            {/* Custom Product Grid for Flash Sale */}
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              {products.map((product) => {
+                const discount = calculateDiscount(product);
+                const imageUrl = product.media?.[0]?.url || '/images/placeholder.png';
+                const remainingStock = getRemainingStock(product);
+                const soldPercentage = Math.round(((product.stock - remainingStock) / product.stock) * 100);
+                
+                return (
+                  <Link
+                    key={product.id}
+                    href={`/products/${getProductSlug(product)}`}
+                    className="group block"
+                  >
+                    <div className="bg-white rounded-xl overflow-hidden transition-all duration-300 hover:shadow-2xl border border-gray-100">
+                      <div className="relative aspect-square overflow-hidden bg-gray-100">
+                        <Image
+                          src={imageUrl}
+                          alt={product.name}
+                          fill
+                          className="object-cover group-hover:scale-110 transition-transform duration-300"
+                          unoptimized
+                        />
+                        {discount > 0 && (
+                          <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg z-10">
+                            -{discount}%
+                          </div>
+                        )}
+                        <div className="absolute top-2 left-2 bg-gradient-to-r from-red-600 to-orange-600 text-white px-2 py-1 rounded-full flex items-center gap-1 text-xs font-bold shadow-lg z-10 animate-pulse">
+                          <Zap className="w-3 h-3 fill-current" />
+                          FLASH
+                        </div>
+                      </div>
+                      
+                      <div className="p-4">
+                        <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-2 h-10">
+                          {product.name}
+                        </h3>
+                        
+                        <div className="mb-3">
+                          {product.compare_at_price && (
+                            <div className="text-xs text-gray-400 line-through">
+                              {formatCurrency(product.compare_at_price)}
+                            </div>
+                          )}
+                          <div className="text-lg font-bold text-red-600">
+                            {formatCurrency(product.price)}
+                          </div>
+                        </div>
+
+                        {/* Stock Progress Bar - Showing Remaining */}
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-600">Tersisa</span>
+                            <span className="text-xs font-bold text-red-600">{remainingStock}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                            <div 
+                              className="bg-gradient-to-r from-red-600 to-orange-600 h-2.5 rounded-full transition-all duration-500"
+                              style={{ width: `${Math.max(5, 100 - soldPercentage)}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {soldPercentage}% Terjual
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={(e) => handleAddToCart(product, e)}
+                          className="w-full bg-gradient-to-r from-red-600 to-orange-600 text-white py-2 rounded-lg font-semibold hover:from-red-700 hover:to-orange-700 transition-all text-sm"
+                        >
+                          Beli Sekarang
+                        </button>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
           </>
         )}
       </div>

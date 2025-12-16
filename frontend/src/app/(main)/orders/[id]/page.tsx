@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ArrowLeft, Package, CreditCard, Truck } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, Package, CreditCard, Truck, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -18,6 +19,7 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [copiedResi, setCopiedResi] = useState(false);
 
   useEffect(() => {
     loadOrder();
@@ -33,6 +35,13 @@ export default function OrderDetailPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleCopyResi = (trackingNumber: string) => {
+    navigator.clipboard.writeText(trackingNumber);
+    setCopiedResi(true);
+    toast.success('Tracking number copied!');
+    setTimeout(() => setCopiedResi(false), 2000);
   };
 
   const getStatusBadge = (status: string) => {
@@ -61,6 +70,8 @@ export default function OrderDetailPage() {
 
   if (!order) return null;
 
+  const isPaid = order.status === 'PAID' || order.status === 'SHIPPED' || order.status === 'DELIVERED' || order.status === 'COMPLETED';
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <button
@@ -81,6 +92,54 @@ export default function OrderDetailPage() {
           </div>
           {getStatusBadge(order.status)}
         </div>
+
+        {/* Tracking Number Card - Show when PAID or later */}
+        {isPaid && (
+          <div className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                  <Truck className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">Tracking Number</h3>
+                  <p className="text-sm text-gray-600">Your order has been shipped</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-xs text-gray-600 mb-1">Courier: <span className="font-semibold">JNE Regular</span></p>
+                  <div className="flex items-center gap-2">
+                    <code className="text-2xl font-mono font-bold text-gray-900">
+                      JNE{order.id}2025
+                    </code>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleCopyResi(`JNE${order.id}2025`)}
+                  className="ml-4 p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  title="Copy tracking number"
+                >
+                  {copiedResi ? (
+                    <Check className="w-5 h-5" />
+                  ) : (
+                    <Copy className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <Link href="/service/tracking">
+              <Button fullWidth variant="outline" className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50">
+                <Truck className="w-5 h-5 mr-2" />
+                Track Shipment
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {/* Order Items */}
         <div className="border-t pt-6 mb-6">

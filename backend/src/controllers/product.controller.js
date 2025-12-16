@@ -4,6 +4,7 @@ const { successResponse, errorResponse, paginatedResponse } = require('../utils/
 class ProductController {
   /**
    * Get all products with filters
+   * UPDATED: Automatically exclude flash sale products
    */
   async getAllProducts(req, res, next) {
     try {
@@ -15,7 +16,8 @@ class ProductController {
         category_slug: req.query.category_slug,
         brand_id: req.query.brand_id,
         min_price: req.query.min_price,
-        max_price: req.query.max_price
+        max_price: req.query.max_price,
+        exclude_flash_sale: true // ⚡ Always exclude flash sale from /products
       };
 
       const result = await productService.getAllProducts(filters);
@@ -25,6 +27,30 @@ class ProductController {
         result.products,
         { page: result.page, limit: result.limit, total: result.total },
         'Products retrieved successfully'
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * ⚡ NEW: Get flash sale products ONLY
+   * Route: GET /api/products/flash-sale
+   */
+  async getFlashSaleProducts(req, res, next) {
+    try {
+      const { page = 1, limit = 12 } = req.query;
+
+      const result = await productService.getFlashSaleProducts({
+        page: parseInt(page),
+        limit: parseInt(limit)
+      });
+
+      return paginatedResponse(
+        res,
+        result.products,
+        { page: result.page, limit: result.limit, total: result.total },
+        'Flash sale products retrieved successfully'
       );
     } catch (error) {
       next(error);

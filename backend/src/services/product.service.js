@@ -1,10 +1,11 @@
-// backend/src/services/product.service.js - FIXED VERSION
+// backend/src/services/product.service.js - UPDATED VERSION
 const { Product, Category, Brand, ProductMedia } = require('../models');
 const { Op } = require('sequelize');
 
 class ProductService {
   /**
    * Get all products dengan filter dan pagination
+   * UPDATED: Exclude flash sale products (discount >= 30%) from regular listing
    */
   async getAllProducts(filters = {}) {
     const { 
@@ -16,7 +17,8 @@ class ProductService {
       brand_id, 
       min_price, 
       max_price,
-      is_flash_sale
+      is_flash_sale,
+      exclude_flash_sale = true // ⚡ DEFAULT TRUE: exclude flash sale from all products
     } = filters;
 
     const offset = (page - 1) * limit;
@@ -84,17 +86,33 @@ class ProductService {
     }
 
     try {
-      const { count, rows } = await Product.findAndCountAll({
+      let { count, rows } = await Product.findAndCountAll({
         where,
         include: [
           { model: Category, as: 'category' },
           { model: Brand, as: 'brand' },
           { model: ProductMedia, as: 'media' }
         ],
-        limit: parseInt(limit),
+        limit: parseInt(limit) * 2, // Fetch more to account for filtering
         offset,
         order: [['created_at', 'DESC']]
       });
+
+      // ⚡ FILTER OUT flash sale products (discount >= 30%)
+      if (exclude_flash_sale === true) {
+        rows = rows.filter(product => {
+          if (!product.compare_at_price || product.compare_at_price <= product.price) {
+            return true; // No discount, include it
+          }
+          
+          const discountPercentage = ((product.compare_at_price - product.price) / product.compare_at_price) * 100;
+          return discountPercentage < 30; // Exclude if discount >= 30%
+        });
+
+        // Trim to actual limit
+        rows = rows.slice(0, parseInt(limit));
+        count = rows.length; // Adjust count
+      }
 
       return {
         products: rows,
@@ -149,6 +167,51 @@ class ProductService {
   }
 
   /**
+   * Get flash sale products ONLY
+   * This endpoint shows products with discount >= 30%
+   */
+  async getFlashSaleProducts(filters = {}) {
+    const { page = 1, limit = 12 } = filters;
+    const offset = (page - 1) * limit;
+
+    try {
+      // Fetch all products with compare_at_price
+      let { count, rows } = await Product.findAndCountAll({
+        where: {
+          compare_at_price: { [Op.gt]: 0 }
+        },
+        include: [
+          { model: Category, as: 'category' },
+          { model: Brand, as: 'brand' },
+          { model: ProductMedia, as: 'media' }
+        ],
+        order: [['created_at', 'DESC']]
+      });
+
+      // Filter for discount >= 30%
+      rows = rows.filter(product => {
+        const discountPercentage = ((product.compare_at_price - product.price) / product.compare_at_price) * 100;
+        return discountPercentage >= 30;
+      });
+
+      // Pagination
+      const total = rows.length;
+      rows = rows.slice(offset, offset + parseInt(limit));
+
+      return {
+        products: rows,
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / limit)
+      };
+    } catch (error) {
+      console.error('Error fetching flash sale products:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get products by category slug
    */
   async getProductsByCategory(categorySlug, options = {}) {
@@ -164,24 +227,35 @@ class ProductService {
 
     const offset = (page - 1) * limit;
 
-    const { count, rows } = await Product.findAndCountAll({
+    let { count, rows } = await Product.findAndCountAll({
       where: { category_id: category.id },
       include: [
         { model: Category, as: 'category' },
         { model: Brand, as: 'brand' },
         { model: ProductMedia, as: 'media' }
       ],
-      limit: parseInt(limit),
-      offset,
       order: [['created_at', 'DESC']]
     });
+
+    // ⚡ Exclude flash sale products
+    rows = rows.filter(product => {
+      if (!product.compare_at_price || product.compare_at_price <= product.price) {
+        return true;
+      }
+      const discountPercentage = ((product.compare_at_price - product.price) / product.compare_at_price) * 100;
+      return discountPercentage < 30;
+    });
+
+    // Pagination
+    const total = rows.length;
+    rows = rows.slice(offset, offset + parseInt(limit));
 
     return {
       products: rows,
       pagination: {
-        total: count,
+        total,
         page: parseInt(page),
-        totalPages: Math.ceil(count / limit),
+        totalPages: Math.ceil(total / limit),
         limit: parseInt(limit)
       },
       category: {
@@ -208,24 +282,35 @@ class ProductService {
 
     const offset = (page - 1) * limit;
 
-    const { count, rows } = await Product.findAndCountAll({
+    let { count, rows } = await Product.findAndCountAll({
       where: { brand_id: brand.id },
       include: [
         { model: Category, as: 'category' },
         { model: Brand, as: 'brand' },
         { model: ProductMedia, as: 'media' }
       ],
-      limit: parseInt(limit),
-      offset,
       order: [['created_at', 'DESC']]
     });
+
+    // ⚡ Exclude flash sale products
+    rows = rows.filter(product => {
+      if (!product.compare_at_price || product.compare_at_price <= product.price) {
+        return true;
+      }
+      const discountPercentage = ((product.compare_at_price - product.price) / product.compare_at_price) * 100;
+      return discountPercentage < 30;
+    });
+
+    // Pagination
+    const total = rows.length;
+    rows = rows.slice(offset, offset + parseInt(limit));
 
     return {
       products: rows,
       pagination: {
-        total: count,
+        total,
         page: parseInt(page),
-        totalPages: Math.ceil(count / limit),
+        totalPages: Math.ceil(total / limit),
         limit: parseInt(limit)
       },
       brand: {

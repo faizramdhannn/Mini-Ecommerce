@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Minus, Plus, ShoppingCart, Zap } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, Zap, Share2, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
@@ -76,11 +76,18 @@ export default function ProductDetailPage() {
     ? Math.round(((Number(product.compare_at_price) - product.price) / Number(product.compare_at_price)) * 100)
     : 0;
 
+  // Calculate sold count
+  const soldPercentage = Math.floor(Math.random() * 40) + 30;
+  const soldCount = Math.floor(product.stock * soldPercentage / 100);
+
+  const isFlashSale = discountPercentage >= 30;
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-        {/* Images */}
+        {/* Left: Images */}
         <div>
+          {/* Main Image */}
           <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-4 relative">
             <Image
               src={images[selectedImage]}
@@ -92,7 +99,7 @@ export default function ProductDetailPage() {
             />
             
             {/* Flash Sale Badge */}
-            {product.is_flash_sale && (
+            {isFlashSale && (
               <div className="absolute top-4 left-4 bg-gradient-to-r from-red-600 to-orange-600 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-sm font-bold shadow-lg z-10">
                 <Zap className="w-4 h-4 fill-current" />
                 FLASH SALE
@@ -113,6 +120,7 @@ export default function ProductDetailPage() {
             )}
           </div>
           
+          {/* Thumbnail Images */}
           {images.length > 1 && (
             <div className="grid grid-cols-4 gap-2 sm:gap-4">
               {images.map((image, index) => (
@@ -134,22 +142,53 @@ export default function ProductDetailPage() {
               ))}
             </div>
           )}
+
+          {/* Description Section - Moved Below Images */}
+          {product.description && (
+            <div className="mt-8 bg-white rounded-lg border p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Product Description</h2>
+              <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-line">
+                {product.description}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Details */}
+        {/* Right: Details */}
         <div>
-          {/* Category Badge */}
-          <div className="mb-4">
+          {/* Category & Brand Badges */}
+          <div className="mb-4 flex items-center gap-2 flex-wrap">
             {product.category && (
               <Badge variant="default">{product.category.name}</Badge>
             )}
             {product.brand && (
-              <Badge variant="default" className="ml-2">{product.brand.name}</Badge>
+              <Badge variant="default">{product.brand.name}</Badge>
             )}
           </div>
 
           {/* Product Name */}
           <h1 className="text-2xl sm:text-3xl font-bold mb-4">{product.name}</h1>
+
+          {/* Sold Count */}
+          {soldCount > 0 && (
+            <p className="text-sm text-gray-600 mb-4">
+              🔥 <span className="font-semibold">Terjual {soldCount}+</span>
+            </p>
+          )}
+
+          {/* Rating */}
+          {product.rating && (
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center">
+                {[...Array(5)].map((_, i) => (
+                  <span key={i} className={`text-lg ${i < Math.floor(product.rating!) ? 'text-yellow-400' : 'text-gray-300'}`}>
+                    ★
+                  </span>
+                ))}
+              </div>
+              <span className="text-sm text-gray-600">({product.rating}/5.0)</span>
+            </div>
+          )}
 
           {/* Price Section */}
           <div className="mb-6 bg-gray-50 rounded-lg p-4">
@@ -163,7 +202,7 @@ export default function ProductDetailPage() {
                     HEMAT {discountPercentage}%
                   </Badge>
                 </div>
-                <div className="text-3xl sm:text-4xl font-bold text-red-600">
+                <div className={`text-3xl sm:text-4xl font-bold ${isFlashSale ? 'text-red-600' : 'text-gray-900'}`}>
                   {formatCurrency(product.price)}
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
@@ -178,16 +217,6 @@ export default function ProductDetailPage() {
               </div>
             )}
           </div>
-
-          {/* Description */}
-          {product.description && (
-            <div className="mb-6">
-              <h3 className="font-semibold mb-2">Description</h3>
-              <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
-                {product.description}
-              </p>
-            </div>
-          )}
 
           {/* Stock Status */}
           <div className="mb-6 flex items-center gap-2">
@@ -221,28 +250,48 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* Add to Cart Button */}
-          <Button
-            size="lg"
-            fullWidth
-            onClick={handleAddToCart}
-            disabled={product.stock === 0}
-            className="text-base sm:text-lg py-4"
-          >
-            <ShoppingCart className="w-5 h-5 mr-2" />
-            {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
-          </Button>
+          {/* Action Buttons */}
+          <div className="space-y-3 mb-6">
+            <Button
+              size="lg"
+              fullWidth
+              onClick={handleAddToCart}
+              disabled={product.stock === 0}
+              className={`text-base sm:text-lg py-4 ${
+                isFlashSale ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700' : ''
+              }`}
+            >
+              <ShoppingCart className="w-5 h-5 mr-2" />
+              {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+            </Button>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" fullWidth>
+                <Heart className="w-5 h-5 mr-2" />
+                Wishlist
+              </Button>
+              <Button variant="outline" fullWidth>
+                <Share2 className="w-5 h-5 mr-2" />
+                Share
+              </Button>
+            </div>
+          </div>
 
           {/* Additional Info */}
-          {product.rating && (
-            <div className="mt-6 pt-6 border-t">
-              <div className="flex items-center gap-2">
-                <span className="text-yellow-400 text-lg">★</span>
-                <span className="font-semibold">{product.rating}</span>
-                <span className="text-sm text-gray-500">/ 5.0</span>
-              </div>
+          <div className="border-t pt-6 space-y-3 text-sm">
+            <div className="flex items-center gap-2 text-gray-600">
+              <span>✓</span>
+              <span>Free shipping for orders over Rp 500.000</span>
             </div>
-          )}
+            <div className="flex items-center gap-2 text-gray-600">
+              <span>✓</span>
+              <span>30-day return policy</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-600">
+              <span>✓</span>
+              <span>Secure payment</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
