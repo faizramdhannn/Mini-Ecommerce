@@ -1,167 +1,308 @@
 'use client';
 
-import { useState } from 'react';
-import { Building2, Mail, Phone, Users, Send } from 'lucide-react';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import toast from 'react-hot-toast';
+import { useState, useEffect } from 'react';
+import { Building2, Mail, Phone, User, Package, Send } from 'lucide-react';
+import Image from 'next/image';
+import { productService } from '@/lib/services/product.service';
+import type { Product } from '@/types';
 
-export default function CorporatePage() {
+export default function CorporateOrderPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [formData, setFormData] = useState({
     company_name: '',
-    contact_name: '',
+    contact_person: '',
     email: '',
     phone: '',
-    employee_count: '',
-    message: '',
+    product_id: '',
+    quantity: '',
+    message: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch products on mount
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await productService.getProducts({ limit: 100 });
+        setProducts(response.data);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  const selectedProduct = products.find(p => p.id === Number(formData.product_id));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     // Simulate API call
-    setTimeout(() => {
-      toast.success('Corporate inquiry submitted successfully! We will contact you soon.');
-      setFormData({
-        company_name: '',
-        contact_name: '',
-        email: '',
-        phone: '',
-        employee_count: '',
-        message: '',
-      });
-      setIsSubmitting(false);
-    }, 1000);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    alert(`Terima kasih! Permintaan corporate order Anda telah diterima.\n\nProduk: ${selectedProduct?.name}\nJumlah: ${formData.quantity} unit\n\nTim kami akan segera menghubungi Anda.`);
+    
+    setFormData({
+      company_name: '',
+      contact_person: '',
+      email: '',
+      phone: '',
+      product_id: '',
+      quantity: '',
+      message: ''
+    });
+    setIsSubmitting(false);
   };
 
   return (
-    <div className="min-h-screen bg-black text-white py-12">
-      <div className="max-w-4xl mx-auto px-4">
+    <div className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6">
-            <Building2 className="w-10 h-10 text-black" />
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full mb-4">
+            <Building2 className="w-10 h-10 text-blue-600" />
           </div>
-          <h1 className="text-4xl font-bold mb-4">Corporate Orders</h1>
-          <p className="text-gray-400 text-lg">
-            Special pricing and services for businesses
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            Corporate Order
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Solusi pengadaan gadget dan elektronik untuk kebutuhan perusahaan Anda dengan harga khusus dan layanan prioritas.
           </p>
         </div>
 
         {/* Benefits */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
-            <div className="text-3xl mb-3">💰</div>
-            <h3 className="font-bold mb-2">Volume Discounts</h3>
-            <p className="text-sm text-gray-400">Special pricing for bulk orders</p>
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
+          <div className="bg-white rounded-lg shadow-md p-6 text-center">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-4">
+              <Package className="w-6 h-6 text-green-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-2">Harga Khusus</h3>
+            <p className="text-sm text-gray-600">
+              Dapatkan harga spesial untuk pembelian dalam jumlah besar
+            </p>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
-            <div className="text-3xl mb-3">🎨</div>
-            <h3 className="font-bold mb-2">Custom Branding</h3>
-            <p className="text-sm text-gray-400">Add your company logo</p>
+
+          <div className="bg-white rounded-lg shadow-md p-6 text-center">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-4">
+              <User className="w-6 h-6 text-blue-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-2">Account Manager</h3>
+            <p className="text-sm text-gray-600">
+              Dedicated account manager untuk kemudahan komunikasi
+            </p>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
-            <div className="text-3xl mb-3">📦</div>
-            <h3 className="font-bold mb-2">Flexible Delivery</h3>
-            <p className="text-sm text-gray-400">Scheduled bulk deliveries</p>
+
+          <div className="bg-white rounded-lg shadow-md p-6 text-center">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-purple-100 rounded-full mb-4">
+              <Building2 className="w-6 h-6 text-purple-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-2">Layanan Prioritas</h3>
+            <p className="text-sm text-gray-600">
+              Proses cepat dan pengiriman prioritas untuk order perusahaan
+            </p>
           </div>
         </div>
 
-        {/* Contact Form */}
-        <div className="bg-white rounded-lg p-8">
-          <h2 className="text-2xl font-bold text-black mb-6">Get in Touch</h2>
-          
+        {/* Order Form */}
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            Form Permintaan Penawaran
+          </h2>
+
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Company Name *"
+            {/* Company Name */}
+            <div>
+              <label htmlFor="company_name" className="block text-sm font-medium text-gray-700 mb-2">
+                Nama Perusahaan <span className="text-red-500">*</span>
+              </label>
+              <input
                 type="text"
+                id="company_name"
                 required
                 value={formData.company_name}
                 onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                placeholder="PT. Your Company"
-                className="text-black"
-              />
-              <Input
-                label="Contact Person *"
-                type="text"
-                required
-                value={formData.contact_name}
-                onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                placeholder="John Doe"
-                className="text-black"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="PT. Contoh Perusahaan"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Email *"
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="corporate@company.com"
-                className="text-black"
-              />
-              <Input
-                label="Phone Number *"
-                type="tel"
-                required
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="08xxxxxxxxxx"
-                className="text-black"
-              />
-            </div>
-
-            <Input
-              label="Number of Employees"
-              type="text"
-              value={formData.employee_count}
-              onChange={(e) => setFormData({ ...formData, employee_count: e.target.value })}
-              placeholder="50-100"
-              className="text-black"
-            />
-
+            {/* Contact Person */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Message *
+              <label htmlFor="contact_person" className="block text-sm font-medium text-gray-700 mb-2">
+                Nama Contact Person <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="contact_person"
+                required
+                value={formData.contact_person}
+                onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="John Doe"
+              />
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Email */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Perusahaan <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="john@company.com"
+                />
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                  Nomor Telepon <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  id="phone"
+                  required
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="08123456789"
+                />
+              </div>
+            </div>
+
+            {/* Product Selection with Image */}
+            <div>
+              <label htmlFor="product_id" className="block text-sm font-medium text-gray-700 mb-2">
+                Produk yang Diinginkan <span className="text-red-500">*</span>
+              </label>
+              
+              {isLoadingProducts ? (
+                <div className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-500">
+                  Loading products...
+                </div>
+              ) : (
+                <select
+                  id="product_id"
+                  required
+                  value={formData.product_id}
+                  onChange={(e) => setFormData({ ...formData, product_id: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">-- Pilih Produk --</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} - Rp {product.price.toLocaleString('id-ID')}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* Selected Product Preview */}
+              {selectedProduct && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center space-x-4">
+                    <div className="relative w-20 h-20 flex-shrink-0">
+                      <Image
+                        src={selectedProduct.media?.[0]?.url || '/placeholder-product.png'}
+                        alt={selectedProduct.name}
+                        fill
+                        className="object-cover rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900">{selectedProduct.name}</h4>
+                      <p className="text-sm text-gray-600">
+                        {selectedProduct.brand?.name} • {selectedProduct.category?.name}
+                      </p>
+                      <p className="text-lg font-bold text-blue-600 mt-1">
+                        Rp {selectedProduct.price.toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Quantity */}
+            <div>
+              <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-2">
+                Jumlah Unit <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                id="quantity"
+                required
+                min="1"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Minimal 1 unit"
+              />
+              <p className="mt-2 text-sm text-gray-500">
+                Untuk pembelian dalam jumlah besar (&gt;10 unit), Anda akan mendapatkan harga khusus
+              </p>
+            </div>
+
+            {/* Message */}
+            <div>
+              <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
+                Pesan Tambahan (Optional)
               </label>
               <textarea
-                required
+                id="message"
+                rows={4}
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                placeholder="Tell us about your requirements..."
-                rows={5}
-                className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                placeholder="Catatan khusus atau pertanyaan lainnya..."
               />
             </div>
 
-            <Button type="submit" fullWidth isLoading={isSubmitting} size="lg">
-              <Send className="w-5 h-5 mr-2" />
-              Submit Inquiry
-            </Button>
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+            >
+              {isSubmitting ? (
+                <span>Mengirim...</span>
+              ) : (
+                <>
+                  <Send className="w-5 h-5" />
+                  <span>Kirim Permintaan Penawaran</span>
+                </>
+              )}
+            </button>
+
+            <p className="text-sm text-gray-500 text-center">
+              Tim kami akan menghubungi Anda dalam 1x24 jam untuk diskusi lebih lanjut
+            </p>
           </form>
         </div>
 
         {/* Contact Info */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-          <div className="text-center">
-            <Mail className="w-8 h-8 mx-auto mb-2" />
-            <h3 className="font-bold mb-1">Email</h3>
-            <p className="text-sm text-gray-400">corporate@magadir.com</p>
-          </div>
-          <div className="text-center">
-            <Phone className="w-8 h-8 mx-auto mb-2" />
-            <h3 className="font-bold mb-1">Phone</h3>
-            <p className="text-sm text-gray-400">+62 21 1234 5678</p>
-          </div>
-          <div className="text-center">
-            <Users className="w-8 h-8 mx-auto mb-2" />
-            <h3 className="font-bold mb-1">WhatsApp</h3>
-            <p className="text-sm text-gray-400">+62 812 3456 7890</p>
+        <div className="mt-8 bg-blue-50 rounded-lg p-6 border border-blue-100">
+          <h3 className="font-semibold text-gray-900 mb-4">Butuh Bantuan?</h3>
+          <div className="space-y-2 text-sm text-gray-700">
+            <div className="flex items-center">
+              <Phone className="w-4 h-4 mr-2 text-blue-600" />
+              <span>Corporate Sales: +62 852-1584-2148</span>
+            </div>
+            <div className="flex items-center">
+              <Mail className="w-4 h-4 mr-2 text-blue-600" />
+              <span>Email: corporate@magadir.com</span>
+            </div>
           </div>
         </div>
       </div>

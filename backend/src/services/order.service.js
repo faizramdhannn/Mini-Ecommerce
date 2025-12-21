@@ -1,7 +1,54 @@
 const { Order, OrderItem, Product, User, Payment, Shipment } = require('../models');
 const sequelize = require('../db');
+const { Op } = require('sequelize');
 
 class OrderService {
+  /**
+   * ⭐ NEW: Update membership points setelah payment
+   */
+  async updateMembershipPoints(userId, orderAmount) {
+    try {
+      const user = await User.findByPk(userId);
+      if (!user) return;
+      
+      // Hitung poin dari order ini (Rp 1,000 = 1 poin)
+      const pointsEarned = Math.floor(orderAmount / 1000);
+      
+      // Update total points
+      await user.update({
+        membership_points: (user.membership_points || 0) + pointsEarned
+      });
+      
+      console.log(`✅ User ${user.nickname} earned ${pointsEarned} points from order amount Rp ${orderAmount.toLocaleString()}`);
+    } catch (error) {
+      console.error('Error updating membership points:', error);
+    }
+  }
+
+  /**
+   * ⭐ NEW: Deduct membership points (untuk cancel order yang sudah PAID)
+   */
+  async deductMembershipPoints(userId, orderAmount) {
+    try {
+      const user = await User.findByPk(userId);
+      if (!user) return;
+      
+      // Hitung poin yang harus dikurangi
+      const pointsToDeduct = Math.floor(orderAmount / 1000);
+      
+      // Kurangi points, minimal 0
+      const newPoints = Math.max(0, (user.membership_points || 0) - pointsToDeduct);
+      
+      await user.update({
+        membership_points: newPoints
+      });
+      
+      console.log(`✅ Deducted ${pointsToDeduct} points from user ${user.nickname}. New total: ${newPoints} points`);
+    } catch (error) {
+      console.error('Error deducting membership points:', error);
+    }
+  }
+
   /**
    * Get all orders dengan pagination
    * Admin: dapat melihat semua orders
@@ -187,6 +234,7 @@ class OrderService {
 
   /**
    * Create payment untuk order (PENDING → PAID)
+   * ⭐ UPDATED: Auto-update membership points setelah payment
    */
   async createPayment(orderId, paymentData) {
     const order = await Order.findByPk(orderId);
@@ -214,6 +262,9 @@ class OrderService {
     });
     
     await order.update({ status: 'PAID' });
+    
+    // ⭐ UPDATE MEMBERSHIP POINTS (hanya dari total_amount, tidak termasuk shipping)
+    await this.updateMembershipPoints(order.user_id, order.total_amount);
     
     return payment;
   }
@@ -251,7 +302,7 @@ class OrderService {
   }
 
   /**
-   * Update shipment status
+   * Update shipment status (SHIPPED → DELIVERED)
    */
   async updateShipmentStatus(orderId, status) {
     const shipment = await Shipment.findOne({ where: { order_id: orderId } });
@@ -302,6 +353,7 @@ class OrderService {
 
   /**
    * Cancel order (PENDING/PAID → CANCELED)
+   * ⭐ UPDATED: Deduct membership points jika order sudah PAID
    */
   async cancelOrder(orderId, user = null, reason = null) {
     const where = { id: orderId };
@@ -321,7 +373,38 @@ class OrderService {
       throw new Error(`Cannot cancel order with status: ${order.status}`);
     }
     
-    return await this.updateOrderStatus(orderId, 'CANCELED', reason);
+    // ⭐ Jika order sudah PAID, kurangi membership points
+    if (order.status === 'PAID') {
+      await this.deductMembershipPoints(order.user_id, order.total_amount);
+    }
+    
+    // Restore stock untuk semua items
+    const transaction = await sequelize.transaction();
+    
+    try {
+      const orderItems = await OrderItem.findAll({
+        where: { order_id: orderId }
+      });
+      
+      for (const item of orderItems) {
+        const product = await Product.findByPk(item.product_id);
+        if (product) {
+          await product.update(
+            { stock: product.stock + item.quantity },
+            { transaction }
+          );
+        }
+      }
+      
+      await order.update({ status: 'CANCELED' }, { transaction });
+      
+      await transaction.commit();
+      
+      return await this.getOrderById(orderId);
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 }
 

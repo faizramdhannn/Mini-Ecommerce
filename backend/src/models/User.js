@@ -43,6 +43,12 @@ const User = sequelize.define('User', {
     type: DataTypes.ENUM('user', 'admin'),
     defaultValue: 'user',
     allowNull: false
+  },
+  // ⭐ TAMBAHAN BARU: Membership Points
+  membership_points: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    allowNull: false
   }
 }, {
   tableName: 'users',

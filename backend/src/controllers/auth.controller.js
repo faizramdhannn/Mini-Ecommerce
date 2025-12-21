@@ -107,16 +107,35 @@ class AuthController {
    * Get profile user yang sedang login
    */
   async getProfile(req, res, next) {
-    try {
-      const user = await User.findByPk(req.user.id, {
-        attributes: { exclude: ['password'] }
-      });
-      
-      return successResponse(res, user, 'Profile retrieved successfully');
-    } catch (error) {
-      next(error);
-    }
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password'] }
+    });
+    
+    // ⭐ Hitung membership points dari total pembelian
+    const { Order } = require('../models');
+    const orders = await Order.findAll({
+      where: { 
+        user_id: user.id,
+        status: { [Op.in]: ['PAID', 'SHIPPED', 'DELIVERED', 'COMPLETED'] }
+      },
+      attributes: ['total_amount']
+    });
+    
+    const totalSpent = orders.reduce((sum, order) => sum + Number(order.total_amount), 0);
+    const membershipPoints = Math.floor(totalSpent / 1000);
+    
+    // Update membership points
+    await user.update({ membership_points: membershipPoints });
+    
+    return successResponse(res, {
+      ...user.toJSON(),
+      membership_points: membershipPoints
+    }, 'Profile retrieved successfully');
+  } catch (error) {
+    next(error);
   }
+}
 
   /**
    * Update password

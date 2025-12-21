@@ -10,6 +10,7 @@ export interface User {
   profile_image?: string;
   birthday?: string;
   role?: 'user' | 'admin';
+  membership_points?: number;
   created_at?: string;
   updated_at?: string;
 }

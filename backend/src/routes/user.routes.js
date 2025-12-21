@@ -16,15 +16,18 @@ const addressValidation = [
 ];
 
 // Routes
-router.get('/',  userController.getAllUsers);
-router.get('/:id',  userController.getUserById);
-router.put('/:id',  userController.updateUser);
-router.delete('/:id',  userController.deleteUser);
+router.get('/', userController.getAllUsers);
+router.get('/:id', userController.getUserById);
+router.put('/:id', userController.updateUser);
+router.delete('/:id', userController.deleteUser);
+
+// ⭐ NEW: Membership endpoint
+router.get('/me/membership', authenticate, userController.getMembershipInfo);
 
 // Address routes
-router.get('/:id/addresses',  userController.getUserAddresses);
-router.post('/:id/addresses',  addressValidation, userController.addUserAddress);
-router.put('/:id/addresses/:addressId',  addressValidation, userController.updateUserAddress);
-router.delete('/:id/addresses/:addressId',  userController.deleteUserAddress);
+router.get('/:id/addresses', userController.getUserAddresses);
+router.post('/:id/addresses', addressValidation, userController.addUserAddress);
+router.put('/:id/addresses/:addressId', addressValidation, userController.updateUserAddress);
+router.delete('/:id/addresses/:addressId', userController.deleteUserAddress);
 
 module.exports = router;

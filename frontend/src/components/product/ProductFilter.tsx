@@ -130,11 +130,11 @@ export const ProductFilter = ({ onFilterChange }: ProductFilterProps) => {
           {/* Visual Range Slider Container */}
           <div className="relative pt-2 pb-6">
             {/* Track Background */}
-            <div className="absolute w-full h-2 bg-gray-200 rounded-lg top-2"></div>
+            <div className="absolute w-full h-2 bg-gray-600 rounded-lg top-2"></div>
             
             {/* Active Range */}
             <div 
-              className="absolute h-2 bg-black rounded-lg top-2"
+              className="absolute h-2 bg-white rounded-lg top-2"
               style={{
                 left: `${minPercent}%`,
                 width: `${maxPercent - minPercent}%`
@@ -149,20 +149,6 @@ export const ProductFilter = ({ onFilterChange }: ProductFilterProps) => {
               step="50000"
               value={minPrice}
               onChange={(e) => handlePriceRangeChange(e, 'min')}
-              className="absolute w-full h-2 appearance-none bg-transparent pointer-events-none top-2 z-20"
-              style={{
-                WebkitAppearance: 'none',
-              }}
-            />
-
-            {/* Max Slider */}
-            <input
-              type="range"
-              min="0"
-              max="5000000"
-              step="50000"
-              value={maxPrice}
-              onChange={(e) => handlePriceRangeChange(e, 'max')}
               className="absolute w-full h-2 appearance-none bg-transparent pointer-events-none top-2 z-20"
               style={{
                 WebkitAppearance: 'none',

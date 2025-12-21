@@ -1,312 +1,431 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Tag, X, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { useCartStore } from '@/lib/store/cart.store';
 import { useAuthStore } from '@/lib/store/auth.store';
+import { cartService } from '@/lib/services/cart.service';
+import { userService } from '@/lib/services/user.service';
 import { orderService } from '@/lib/services/order.service';
-import { voucherService } from '@/lib/services/voucher.service';
-import { formatCurrency } from '@/lib/utils/format';
-import { PAYMENT_METHODS, SHIPPING_COST } from '@/lib/utils/constants';
-import { BankTransferModal, CreditCardModal, EWalletModal, CODModal } from '@/components/payment/PaymentModals';
-import { VoucherModal } from '@/components/voucher/VoucherModal';
-import toast from 'react-hot-toast';
-import type { CartItem } from '@/types';
-import type { Voucher } from '@/types/voucher';
+import type { Cart, UserAddress } from '@/types';
+import { toast } from 'react-hot-toast';
+import { MapPin, Plus, CreditCard, Truck } from 'lucide-react';
+import PaymentModals from '@/components/payment/PaymentModals';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cart, fetchCart, clearCart } = useCartStore();
-  const { isAuthenticated } = useAuthStore();
-  const [selectedPayment, setSelectedPayment] = useState('bank_transfer');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  
-  // Voucher states
-  const [showVoucherModal, setShowVoucherModal] = useState(false);
-  const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
+  const { user } = useAuthStore();
+  const [cart, setCart] = useState<Cart | null>(null);
+  const [addresses, setAddresses] = useState<UserAddress[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<number | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
+  const [isLoadingCart, setIsLoadingCart] = useState(true);
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Payment modal states
+  const [showBankTransfer, setShowBankTransfer] = useState(false);
+  const [showEWallet, setShowEWallet] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
+
+  // ⭐ UPDATED: Support checkout from selected items
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login');
+    if (!user) {
+      router.push('/login?redirect=/checkout');
       return;
     }
-    fetchCart();
-  }, [isAuthenticated, fetchCart, router]);
 
-  const subtotal = cart?.items?.reduce(
-    (sum: number, item: CartItem) => sum + item.product.price * item.quantity,
-    0
-  ) || 0;
+    const fetchCartData = async () => {
+      try {
+        setIsLoadingCart(true);
+        
+        // ⭐ Check if checkout from selected items
+        const checkoutItemsStr = sessionStorage.getItem('checkoutItems');
+        
+        if (checkoutItemsStr) {
+          // ⭐ Checkout from selected items only
+          const selectedItems = JSON.parse(checkoutItemsStr);
+          const mockCart = {
+            id: 1,
+            user_id: user.id,
+            items: selectedItems,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          setCart(mockCart);
+          
+          // ⭐ Clear after use
+          sessionStorage.removeItem('checkoutItems');
+        } else {
+          // ⭐ Checkout all items (fallback)
+          const data = await cartService.getCart();
+          setCart(data);
+        }
+      } catch (error) {
+        console.error('Error fetching cart:', error);
+        toast.error('Failed to load cart');
+      } finally {
+        setIsLoadingCart(false);
+      }
+    };
 
-  // Calculate discount
-  const discount = appliedVoucher?.type === 'DISCOUNT' 
-    ? (appliedVoucher.discount_amount || 0)
-    : 0;
+    fetchCartData();
+    fetchAddresses();
+  }, [user, router]);
 
-  // Calculate shipping
-  const shipping = appliedVoucher?.type === 'FREE_SHIPPING' ? 0 : SHIPPING_COST;
-
-  // Calculate total
-  const total = subtotal - discount + shipping;
-
-  const handleApplyVoucher = async (voucher: Voucher) => {
+  const fetchAddresses = async () => {
+    if (!user) return;
+    
     try {
-      const result = await voucherService.applyVoucher({
-        code: voucher.code,
-        subtotal,
-      });
-
-      if (result.valid && result.voucher) {
-        setAppliedVoucher(result.voucher);
-        setShowVoucherModal(false);
-        toast.success('Voucher applied successfully!');
-      } else {
-        toast.error(result.message);
+      setIsLoadingAddresses(true);
+      const data = await userService.getUserAddresses(user.id);
+      setAddresses(data);
+      
+      // Auto-select default address
+      const defaultAddress = data.find(addr => addr.is_default);
+      if (defaultAddress) {
+        setSelectedAddress(defaultAddress.id);
+      } else if (data.length > 0) {
+        setSelectedAddress(data[0].id);
       }
     } catch (error) {
-      toast.error('Failed to apply voucher');
+      console.error('Error fetching addresses:', error);
+    } finally {
+      setIsLoadingAddresses(false);
     }
   };
 
-  const handleRemoveVoucher = () => {
-    setAppliedVoucher(null);
-    toast.success('Voucher removed');
+  const calculateTotals = () => {
+    if (!cart?.items) return { subtotal: 0, shipping: 0, total: 0 };
+
+    const subtotal = cart.items.reduce((sum, item) => {
+      return sum + (item.product.price * item.quantity);
+    }, 0);
+
+    const shipping = 20000; // Fixed shipping cost
+    const total = subtotal + shipping;
+
+    return { subtotal, shipping, total };
   };
 
-  const handleCheckout = async () => {
+  const handleSubmitOrder = async () => {
+    if (!selectedAddress) {
+      toast.error('Please select a delivery address');
+      return;
+    }
+
+    if (!paymentMethod) {
+      toast.error('Please select a payment method');
+      return;
+    }
+
     if (!cart?.items || cart.items.length === 0) {
       toast.error('Your cart is empty');
       return;
     }
-
-    setShowPaymentModal(true);
-  };
-
-  const handlePaymentConfirm = async (paymentData?: any) => {
-    if (!cart?.items || cart.items.length === 0) {
-      toast.error('Your cart is empty');
-      return;
-    }
-
-    setIsProcessing(true);
-    setShowPaymentModal(false);
 
     try {
+      setIsSubmitting(true);
+
       const orderData = {
-        items: cart.items.map((item: CartItem) => ({
+        items: cart.items.map(item => ({
           product_id: item.product_id,
-          quantity: item.quantity,
+          quantity: item.quantity
         })),
-        payment_method: selectedPayment,
-        shipping_cost: shipping,
-        voucher_code: appliedVoucher?.code,
+        payment_method: paymentMethod,
+        shipping_cost: 20000,
+        address_id: selectedAddress
       };
 
       const order = await orderService.createOrder(orderData);
-      
-      if (selectedPayment === 'bank_transfer') {
-        toast.success('Order created! Waiting for payment confirmation');
+      setCreatedOrderId(order.id);
+
+      // Show payment modal based on method
+      if (paymentMethod === 'bank_transfer') {
+        setShowBankTransfer(true);
+      } else if (paymentMethod === 'e_wallet') {
+        setShowEWallet(true);
       } else {
-        toast.success('Payment processed successfully!');
+        // COD or other methods - redirect to orders
+        toast.success('Order created successfully!');
+        router.push('/account?tab=orders');
       }
-      
-      await clearCart();
-      router.push(`/checkout/success?order_id=${order.id}`);
+
     } catch (error: any) {
+      console.error('Error creating order:', error);
       toast.error(error.response?.data?.message || 'Failed to create order');
     } finally {
-      setIsProcessing(false);
+      setIsSubmitting(false);
     }
   };
 
+  const handlePaymentComplete = () => {
+    setShowBankTransfer(false);
+    setShowEWallet(false);
+    toast.success('Order placed successfully!');
+    router.push('/account?tab=orders');
+  };
+
+  const totals = calculateTotals();
+
+  if (!user) {
+    return null;
+  }
+
+  if (isLoadingCart || isLoadingAddresses) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading checkout...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!cart?.items || cart.items.length === 0) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
-        <Button onClick={() => router.push('/products')}>
-          Continue Shopping
-        </Button>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl text-gray-900 mb-4">Your cart is empty</p>
+          <button
+            onClick={() => router.push('/products')}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Continue Shopping
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Checkout</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Items */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl text-black font-semibold mb-4">Order Items</h2>
-            <div className="space-y-4">
-              {cart.items.map((item: CartItem) => (
-                <div key={item.id} className="flex gap-4">
-                  <div className="relative w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                    <Image
-                      src={item.product.media?.[0]?.url || '/images/placeholder.png'}
-                      alt={item.product.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-600">{item.product.name}</h3>
-                    <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
-                    <p className="font-semibold mt-1 text-gray-600">
-                      {formatCurrency(item.product.price * item.quantity)}
-                    </p>
-                  </div>
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Left Column - Address & Payment */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Delivery Address */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <MapPin className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-xl font-bold text-gray-900">Delivery Address</h2>
                 </div>
-              ))}
-            </div>
-          </div>
+                <button
+                  onClick={() => router.push('/account/addresses/new?redirect=/checkout')}
+                  className="text-blue-600 hover:text-blue-700 flex items-center space-x-1"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New</span>
+                </button>
+              </div>
 
-          {/* Voucher Section */}
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl text-black font-semibold mb-4 flex items-center gap-2">
-              <Tag className="w-5 h-5" />
-              Voucher
-            </h2>
-
-            {appliedVoucher ? (
-              <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="font-semibold text-gray-900">{appliedVoucher.name}</p>
-                    <p className="text-sm text-gray-600">
-                      Code: <code className="font-mono font-bold">{appliedVoucher.code}</code>
-                    </p>
-                  </div>
+              {addresses.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600 mb-4">No addresses found</p>
                   <button
-                    onClick={handleRemoveVoucher}
-                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    onClick={() => router.push('/account/addresses/new?redirect=/checkout')}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
-                    <X className="w-5 h-5 text-gray-700" />
+                    Add Address
                   </button>
                 </div>
-                <p className="text-sm text-gray-700">
-                  {appliedVoucher.type === 'DISCOUNT' && `Discount: ${formatCurrency(appliedVoucher.discount_amount || 0)}`}
-                  {appliedVoucher.type === 'FREE_SHIPPING' && 'Free Shipping Applied'}
-                </p>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowVoucherModal(true)}
-                className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-gray-400 hover:bg-gray-50 transition-all flex items-center justify-center gap-2 text-gray-600 font-medium"
-              >
-                <Plus className="w-5 h-5" />
-                Select or Enter Voucher
-              </button>
-            )}
-          </div>
-
-          {/* Payment Method */}
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl text-black font-semibold mb-4">Payment Method</h2>
-            <div className="space-y-3 text-gray-600">
-              {PAYMENT_METHODS.map((method) => (
-                <label
-                  key={method.value}
-                  className="flex items-center gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50"
-                >
-                  <input
-                    type="radio"
-                    name="payment"
-                    value={method.value}
-                    checked={selectedPayment === method.value}
-                    onChange={(e) => setSelectedPayment(e.target.value)}
-                    className="w-4 h-4"
-                  />
-                  <span className="font-medium">{method.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Summary */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg border p-6 sticky top-24">
-            <h2 className="text-xl text-black font-semibold mb-4">Order Summary</h2>
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium text-gray-600">{formatCurrency(subtotal)}</span>
-              </div>
-
-              {discount > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Voucher Discount</span>
-                  <span className="font-medium">-{formatCurrency(discount)}</span>
+              ) : (
+                <div className="space-y-3">
+                  {addresses.map((address) => (
+                    <label
+                      key={address.id}
+                      className={`block p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                        selectedAddress === address.id
+                          ? 'border-blue-600 bg-blue-50'
+                          : 'border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="flex items-start">
+                        <input
+                          type="radio"
+                          name="address"
+                          value={address.id}
+                          checked={selectedAddress === address.id}
+                          onChange={() => setSelectedAddress(address.id)}
+                          className="mt-1 mr-3"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <span className="font-semibold text-gray-900">
+                              {address.recipient_name}
+                            </span>
+                            {address.is_default && (
+                              <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">
+                                Default
+                              </span>
+                            )}
+                            {address.label && (
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                                {address.label}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600">{address.phone}</p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {address.address_line}, {address.city}, {address.province} {address.postal_code}
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
                 </div>
               )}
-
-              <div className="flex justify-between">
-                <span className="text-gray-600">Shipping</span>
-                <span className={`font-medium ${shipping === 0 ? 'text-green-600' : 'text-gray-600'}`}>
-                  {shipping === 0 ? 'FREE' : formatCurrency(shipping)}
-                </span>
-              </div>
-
-              <div className="border-t pt-3">
-                <div className="flex justify-between text-black text-lg font-bold">
-                  <span>Total</span>
-                  <span>{formatCurrency(total)}</span>
-                </div>
-              </div>
             </div>
 
-            <Button
-              fullWidth
-              size="lg"
-              onClick={handleCheckout}
-              isLoading={isProcessing}
-            >
-              Checkout
-            </Button>
+            {/* Payment Method */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <CreditCard className="w-5 h-5 text-blue-600" />
+                <h2 className="text-xl font-bold text-gray-900">Payment Method</h2>
+              </div>
+
+              <div className="space-y-3">
+                <label className={`block p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                  paymentMethod === 'bank_transfer' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                }`}>
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="bank_transfer"
+                      checked={paymentMethod === 'bank_transfer'}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="mr-3"
+                    />
+                    <div className="flex-1">
+                      <span className="font-semibold text-gray-900">Bank Transfer</span>
+                      <p className="text-sm text-gray-600">BCA, Mandiri, BNI, BRI</p>
+                    </div>
+                  </div>
+                </label>
+
+                <label className={`block p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                  paymentMethod === 'e_wallet' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                }`}>
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="e_wallet"
+                      checked={paymentMethod === 'e_wallet'}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="mr-3"
+                    />
+                    <div className="flex-1">
+                      <span className="font-semibold text-gray-900">E-Wallet</span>
+                      <p className="text-sm text-gray-600">GoPay, OVO, DANA, ShopeePay</p>
+                    </div>
+                  </div>
+                </label>
+
+                <label className={`block p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                  paymentMethod === 'cod' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                }`}>
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="cod"
+                      checked={paymentMethod === 'cod'}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="mr-3"
+                    />
+                    <div className="flex-1">
+                      <span className="font-semibold text-gray-900">Cash on Delivery (COD)</span>
+                      <p className="text-sm text-gray-600">Bayar saat barang diterima</p>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Order Summary */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Order Summary</h2>
+
+              {/* Items */}
+              <div className="space-y-3 mb-6 max-h-64 overflow-y-auto">
+                {cart.items.map((item) => (
+                  <div key={item.id} className="flex items-start space-x-3">
+                    <div className="relative w-16 h-16 flex-shrink-0">
+                      <Image
+                        src={item.product.media?.[0]?.url || '/placeholder-product.png'}
+                        alt={item.product.name}
+                        fill
+                        className="object-cover rounded"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 line-clamp-2">
+                        {item.product.name}
+                      </p>
+                      <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Rp {(item.product.price * item.quantity).toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Totals */}
+              <div className="space-y-3 mb-6 border-t border-gray-200 pt-4">
+                <div className="flex justify-between text-gray-600">
+                  <span>Subtotal ({cart.items.length} items)</span>
+                  <span>Rp {totals.subtotal.toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Shipping</span>
+                  <span>Rp {totals.shipping.toLocaleString('id-ID')}</span>
+                </div>
+                <div className="border-t border-gray-200 pt-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-bold text-gray-900">Total</span>
+                    <span className="text-xl font-bold text-blue-600">
+                      Rp {totals.total.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Place Order Button */}
+              <button
+                onClick={handleSubmitOrder}
+                disabled={isSubmitting || !selectedAddress || !paymentMethod}
+                className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Processing...' : 'Place Order'}
+              </button>
+
+              <p className="text-xs text-gray-500 text-center mt-4">
+                By placing your order, you agree to our Terms & Conditions
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Voucher Modal */}
-      <VoucherModal
-        isOpen={showVoucherModal}
-        onClose={() => setShowVoucherModal(false)}
-        onApply={handleApplyVoucher}
-        subtotal={subtotal}
-      />
-
       {/* Payment Modals */}
-      <BankTransferModal
-        isOpen={showPaymentModal && selectedPayment === 'bank_transfer'}
-        onClose={() => setShowPaymentModal(false)}
-        onConfirm={handlePaymentConfirm}
-      />
-
-      <CreditCardModal
-        isOpen={showPaymentModal && selectedPayment === 'credit_card'}
-        onClose={() => setShowPaymentModal(false)}
-        onConfirm={handlePaymentConfirm}
-      />
-
-      <EWalletModal
-        isOpen={showPaymentModal && selectedPayment === 'e_wallet'}
-        onClose={() => setShowPaymentModal(false)}
-        onConfirm={handlePaymentConfirm}
-      />
-
-      <CODModal
-        isOpen={showPaymentModal && selectedPayment === 'cod'}
-        onClose={() => setShowPaymentModal(false)}
-        onConfirm={handlePaymentConfirm}
-        totalAmount={total}
-      />
+      {createdOrderId && (
+        <PaymentModals
+          orderId={createdOrderId}
+          totalAmount={totals.total}
+          showBankTransfer={showBankTransfer}
+          showEWallet={showEWallet}
+          onClose={handlePaymentComplete}
+        />
+      )}
     </div>
   );
 }
