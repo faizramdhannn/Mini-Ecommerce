@@ -28,8 +28,10 @@ export default function OrderDetailPage() {
   const loadOrder = async () => {
     try {
       const data = await orderService.getOrder(Number(params.id));
+      console.log('Order loaded:', data);
       setOrder(data);
     } catch (error) {
+      console.error('Failed to load order:', error);
       toast.error('Failed to load order');
       router.push('/orders');
     } finally {
@@ -58,6 +60,30 @@ export default function OrderDetailPage() {
         {statusConfig.label}
       </Badge>
     );
+  };
+
+  // Helper function to get product image URL with proper fallback
+  const getProductImage = (item: any) => {
+    console.log('Getting image for item:', item);
+    
+    // Check all possible image locations
+    const possibleImages = [
+      item.product?.media?.[0]?.url,
+      item.product?.image,
+      item.product_image_snapshot,
+    ];
+
+    // Find first valid image URL
+    for (const img of possibleImages) {
+      if (img && typeof img === 'string' && img.trim() !== '') {
+        console.log('Found image URL:', img);
+        return img;
+      }
+    }
+
+    console.log('No image found, using placeholder');
+    // Use data URL as fallback (no external file needed)
+    return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Crect fill="%23e5e7eb" width="100" height="100"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
   };
 
   if (isLoading) {
@@ -148,56 +174,93 @@ export default function OrderDetailPage() {
             Order Items
           </h2>
           <div className="space-y-4">
-            {order.items.map((item) => (
-              <div key={item.id} className="flex gap-4">
-                <div className="relative w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                  <Image
-                    src={item.product?.media?.[0]?.url || '/images/placeholder.png'}
-                    alt={item.product_name_snapshot}
-                    fill
-                    className="object-cover"
-                  />
+            {order.items.map((item) => {
+              const imageUrl = getProductImage(item);
+              
+              return (
+                <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  {/* Product Image */}
+                  <div className="relative w-20 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                    <Image
+                      src={imageUrl}
+                      alt={item.product_name_snapshot}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  
+                  {/* Product Info */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-black font-medium mb-1 line-clamp-2">
+                      {item.product_name_snapshot}
+                    </h3>
+                    
+                    {/* Brand & Category */}
+                    {(item.product?.brand?.name || item.product?.category?.name) && (
+                      <p className="text-sm text-gray-600 mb-2">
+                        {item.product?.brand?.name && (
+                          <span className="mr-2">{item.product.brand.name}</span>
+                        )}
+                        {item.product?.brand?.name && item.product?.category?.name && (
+                          <span className="mr-2">•</span>
+                        )}
+                        {item.product?.category?.name && (
+                          <span>{item.product.category.name}</span>
+                        )}
+                      </p>
+                    )}
+                    
+                    {/* Price Details */}
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium text-gray-900">
+                          {formatCurrency(item.price_snapshot)}
+                        </span>
+                        {' × '}
+                        <span className="font-medium">{item.quantity}</span>
+                      </p>
+                      <p className="text-base text-black font-bold">
+                        = {formatCurrency(item.price_snapshot * item.quantity)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-black font-medium">{item.product_name_snapshot}</h3>
-                  <p className="text-sm text-gray-600">
-                    {formatCurrency(item.price_snapshot)} × {item.quantity}
-                  </p>
-                  <p className="text-black font-semibold mt-1">
-                    {formatCurrency(item.price_snapshot * item.quantity)}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
         {/* Payment Info */}
         {order.payment && (
           <div className="border-t pt-6 mb-6">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
+            <h2 className="text-black font-semibold mb-4 flex items-center gap-2">
               <CreditCard className="w-5 h-5" />
               Payment Information
             </h2>
-            <div className="space-y-2 text-sm">
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Provider:</span>
-                <span className="font-medium capitalize">
+                <span className="text-gray-600">Payment Method:</span>
+                <span className="font-medium text-gray-900 capitalize">
                   {order.payment.provider.replace('_', ' ')}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Transaction ID:</span>
-                <span className="font-medium">{order.payment.transaction_id}</span>
+                <span className="font-medium text-gray-900 font-mono text-xs">
+                  {order.payment.transaction_id}
+                </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-600">Status:</span>
                 <Badge variant="success">{order.payment.status}</Badge>
               </div>
               {order.payment.paid_at && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">Paid At:</span>
-                  <span className="font-medium">{formatDateTime(order.payment.paid_at)}</span>
+                  <span className="font-medium text-gray-900">
+                    {formatDateTime(order.payment.paid_at)}
+                  </span>
                 </div>
               )}
             </div>
@@ -207,20 +270,22 @@ export default function OrderDetailPage() {
         {/* Shipment Info */}
         {order.shipment && (
           <div className="border-t pt-6 mb-6">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
+            <h2 className="text-black font-semibold mb-4 flex items-center gap-2">
               <Truck className="w-5 h-5" />
               Shipment Information
             </h2>
-            <div className="space-y-2 text-sm">
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Courier:</span>
-                <span className="font-medium">{order.shipment.courier}</span>
+                <span className="font-medium text-gray-900">{order.shipment.courier}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Tracking Number:</span>
-                <span className="font-medium">{order.shipment.tracking_number}</span>
+                <span className="font-medium text-gray-900 font-mono text-xs">
+                  {order.shipment.tracking_number}
+                </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-600">Status:</span>
                 <Badge variant="info">{order.shipment.status}</Badge>
               </div>
@@ -231,18 +296,24 @@ export default function OrderDetailPage() {
         {/* Order Summary */}
         <div className="border-t pt-6">
           <h2 className="text-black font-semibold mb-4">Order Summary</h2>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Subtotal</span>
-              <span className="text-gray-600 font-medium">{formatCurrency(Number(order.total_amount))}</span>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Subtotal ({order.items.length} items)</span>
+              <span className="text-gray-900 font-medium">
+                {formatCurrency(Number(order.total_amount))}
+              </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Shipping</span>
-              <span className="text-gray-600 font-medium">{formatCurrency(order.shipping_cost)}</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Shipping Cost</span>
+              <span className="text-gray-900 font-medium">
+                {formatCurrency(order.shipping_cost)}
+              </span>
             </div>
-            <div className="flex justify-between text-black text-lg font-bold border-t pt-2">
-              <span>Total</span>
-              <span>{formatCurrency(Number(order.total_amount) + Number(order.shipping_cost))}</span>
+            <div className="flex justify-between text-lg font-bold border-t border-gray-300 pt-3">
+              <span className="text-gray-900">Total</span>
+              <span className="text-blue-600">
+                {formatCurrency(Number(order.total_amount) + Number(order.shipping_cost))}
+              </span>
             </div>
           </div>
         </div>

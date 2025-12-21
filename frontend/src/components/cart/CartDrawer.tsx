@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { X, ShoppingBag } from 'lucide-react';
 import { useCartStore } from '@/lib/store/cart.store';
 import { CartItem } from './CartItem';
@@ -13,6 +13,7 @@ import type { CartItem as CartItemType } from '@/types';
 export const CartDrawer = () => {
   const { cart, isOpen, closeCart, fetchCart } = useCartStore();
   const router = useRouter();
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (isOpen) {
@@ -20,19 +21,81 @@ export const CartDrawer = () => {
     }
   }, [isOpen, fetchCart]);
 
-  const subtotal = cart?.items?.reduce(
-    (sum: number, item: CartItemType) => sum + item.product.price * item.quantity,
-    0
-  ) || 0;
+  // Auto-select all items when cart loads
+  useEffect(() => {
+    if (cart?.items && cart.items.length > 0) {
+      const allItemIds = new Set(cart.items.map((item: CartItemType) => item.id));
+      setSelectedItems(allItemIds);
+    }
+  }, [cart?.items]);
 
-  const total = subtotal + SHIPPING_COST;
+  const handleSelectItem = (itemId: number, checked: boolean) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(itemId);
+      } else {
+        newSet.delete(itemId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (!cart?.items) return;
+    
+    if (selectedItems.size === cart.items.length) {
+      // Deselect all
+      setSelectedItems(new Set());
+    } else {
+      // Select all
+      const allItemIds = new Set(cart.items.map((item: CartItemType) => item.id));
+      setSelectedItems(allItemIds);
+    }
+  };
+
+  // Calculate totals for selected items only
+  const calculateSelectedTotals = () => {
+    if (!cart?.items) return { subtotal: 0, count: 0 };
+
+    const selectedCartItems = cart.items.filter((item: CartItemType) => 
+      selectedItems.has(item.id)
+    );
+    
+    const subtotal = selectedCartItems.reduce((sum, item) => {
+      return sum + (item.product.price * item.quantity);
+    }, 0);
+
+    return {
+      subtotal,
+      count: selectedCartItems.length,
+    };
+  };
+
+  const selectedTotals = calculateSelectedTotals();
+  const total = selectedTotals.subtotal + (selectedTotals.count > 0 ? SHIPPING_COST : 0);
 
   const handleCheckout = () => {
+    if (selectedItems.size === 0) {
+      alert('Please select at least one item to checkout');
+      return;
+    }
+
+    // Get selected items data
+    const selectedCartItems = cart?.items?.filter((item: CartItemType) => 
+      selectedItems.has(item.id)
+    ) || [];
+    
+    // Store selected items in sessionStorage for checkout
+    sessionStorage.setItem('checkoutItems', JSON.stringify(selectedCartItems));
+    
     closeCart();
     router.push('/checkout');
   };
 
   if (!isOpen) return null;
+
+  const allSelected = cart?.items && selectedItems.size === cart.items.length && cart.items.length > 0;
 
   return (
     <>
@@ -58,6 +121,28 @@ export const CartDrawer = () => {
           </button>
         </div>
 
+        {/* Select All Section */}
+        {cart?.items && cart.items.length > 0 && (
+          <div className="px-6 py-3 border-b bg-gray-50 flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={handleSelectAll}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Select All ({cart.items.length} items)
+              </span>
+            </label>
+            {selectedItems.size > 0 && (
+              <span className="text-xs text-gray-500">
+                {selectedItems.size} selected
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Items */}
         <div className="flex-1 overflow-y-auto p-6">
           {!cart?.items || cart.items.length === 0 ? (
@@ -68,7 +153,12 @@ export const CartDrawer = () => {
           ) : (
             <div className="space-y-4">
               {cart.items.map((item: CartItemType) => (
-                <CartItem key={item.id} item={item} />
+                <CartItem 
+                  key={item.id} 
+                  item={item}
+                  isSelected={selectedItems.has(item.id)}
+                  onSelectChange={(checked) => handleSelectItem(item.id, checked)}
+                />
               ))}
             </div>
           )}
@@ -77,24 +167,43 @@ export const CartDrawer = () => {
         {/* Footer */}
         {cart?.items && cart.items.length > 0 && (
           <div className="border-t p-6 space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-black">Subtotal</span>
-                <span className="font-medium text-black">{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-black">Shipping</span>
-                <span className="font-medium text-black">{formatCurrency(SHIPPING_COST)}</span>
-              </div>
-              <div className="flex justify-between text-black text-lg font-bold border-t pt-2">
-                <span>Total</span>
-                <span>{formatCurrency(total)}</span>
-              </div>
-            </div>
+            {selectedItems.size > 0 ? (
+              <>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">
+                      Selected ({selectedTotals.count} items)
+                    </span>
+                    <span className="font-medium text-black">
+                      {formatCurrency(selectedTotals.subtotal)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Shipping</span>
+                    <span className="font-medium text-black">
+                      {formatCurrency(SHIPPING_COST)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-black text-lg font-bold border-t pt-2">
+                    <span>Total</span>
+                    <span>{formatCurrency(total)}</span>
+                  </div>
+                </div>
 
-            <Button fullWidth onClick={handleCheckout}>
-              Checkout
-            </Button>
+                <Button fullWidth onClick={handleCheckout}>
+                  Checkout ({selectedItems.size} items)
+                </Button>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-gray-500 text-sm mb-2">
+                  No items selected
+                </p>
+                <p className="text-gray-400 text-xs">
+                  Select items to proceed to checkout
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>

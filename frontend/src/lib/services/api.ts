@@ -10,18 +10,10 @@ const api = axios.create({
 // Request interceptor - add auth token
 api.interceptors.request.use(
   (config) => {
-    // Get token from localStorage
-    const authStore = localStorage.getItem('auth-storage');
-    if (authStore) {
-      try {
-        const { state } = JSON.parse(authStore);
-        const token = state?.token;
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      } catch (error) {
-        console.error('Error parsing auth storage:', error);
-      }
+    // Get token directly from localStorage
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -34,11 +26,20 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Only redirect to login if it's a 401 and NOT during login/register
     if (error.response?.status === 401) {
-      // Unauthorized - clear auth and redirect to login
-      localStorage.removeItem('auth-storage');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+      const url = error.config?.url || '';
+      if (!url.includes('/auth/login') && !url.includes('/auth/register')) {
+        // Unauthorized - clear auth and redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        if (typeof window !== 'undefined') {
+          const currentPath = window.location.pathname;
+          // Don't redirect if already on login page
+          if (currentPath !== '/login') {
+            window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+          }
+        }
       }
     }
     return Promise.reject(error);
