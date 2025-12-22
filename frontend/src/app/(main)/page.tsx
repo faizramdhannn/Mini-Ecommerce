@@ -99,7 +99,7 @@ const formatCurrency = (amount: number) => {
 export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
-  const [flashSaleProducts, setFlashSaleProducts] = useState<Product[]>([]);
+  const [flashSaleProducts, setFlashSaleProducts] = useState<any[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [isLoadingFlashSale, setIsLoadingFlashSale] = useState(true);
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
@@ -122,37 +122,46 @@ export default function HomePage() {
     loadFeaturedProducts();
   }, []);
 
-const loadFlashSaleProducts = async () => {
-  try {
-    setIsLoadingFlashSale(true);
-    const response = await productService.getProducts({ 
-      limit: 100,
-      is_flash_sale: true // Filter berdasarkan flag di database
-    });
-    
-    // Ambil produk yang is_flash_sale === true
-    const flashSale = response.data.filter(product => product.is_flash_sale);
+  const loadFlashSaleProducts = async () => {
+    try {
+      setIsLoadingFlashSale(true);
+      const response = await productService.getProducts({ 
+        limit: 100,
+        is_flash_sale: true
+      });
+      
+      const flashSale = response.data.filter(product => product.is_flash_sale);
 
-    // Sort by discount percentage (highest first)
-    flashSale.sort((a, b) => {
-      const discountA = a.compare_at_price 
-        ? ((a.compare_at_price - a.price) / a.compare_at_price) * 100 
-        : 0;
-      const discountB = b.compare_at_price 
-        ? ((b.compare_at_price - b.price) / b.compare_at_price) * 100 
-        : 0;
-      return discountB - discountA;
-    });
+      flashSale.sort((a, b) => {
+        const discountA = a.compare_at_price 
+          ? ((a.compare_at_price - a.price) / a.compare_at_price) * 100 
+          : 0;
+        const discountB = b.compare_at_price 
+          ? ((b.compare_at_price - b.price) / b.compare_at_price) * 100 
+          : 0;
+        return discountB - discountA;
+      });
 
-    setFlashSaleProducts(flashSale.slice(0, 10));
-  } catch (error) {
-    console.error('Failed to load flash sale products:', error);
-    setFlashSaleProducts([]);
-  } finally {
-    setIsLoadingFlashSale(false);
-  }
-};
+      // Add stable random remaining stock to each product
+      const flashSaleWithStock = flashSale.slice(0, 10).map(product => {
+        const actualRemaining = Math.min(product.stock, 10);
+        const remainingStock = Math.floor(Math.random() * actualRemaining) + 1;
+        
+        return {
+          ...product,
+          flashSaleRemaining: remainingStock,
+          flashSaleSold: product.stock - remainingStock
+        };
+      });
 
+      setFlashSaleProducts(flashSaleWithStock);
+    } catch (error) {
+      console.error('Failed to load flash sale products:', error);
+      setFlashSaleProducts([]);
+    } finally {
+      setIsLoadingFlashSale(false);
+    }
+  };
 
   const loadFeaturedProducts = async () => {
     try {
@@ -282,7 +291,7 @@ const loadFlashSaleProducts = async () => {
         </div>
       </section>
 
-      {/* Flash Sale Section */}
+      {/* Flash Sale Section - SHOPEE STYLE */}
       <section className="bg-gradient-to-b from-black via-orange-600 to-black py-8 sm:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
@@ -324,7 +333,7 @@ const loadFlashSaleProducts = async () => {
             </div>
           </div>
 
-          {/* Products Slider */}
+          {/* ⭐ SHOPEE STYLE Products Slider */}
           <div className="relative">
             <button
               onClick={() => scrollFlashSale('left')}
@@ -339,7 +348,6 @@ const loadFlashSaleProducts = async () => {
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {isLoadingFlashSale ? (
-                // Loading skeleton
                 Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="flex-shrink-0 w-[200px] sm:w-[240px] bg-white rounded-xl overflow-hidden animate-pulse">
                     <div className="aspect-square bg-gray-200" />
@@ -355,9 +363,16 @@ const loadFlashSaleProducts = async () => {
                   <p className="text-white">Tidak ada flash sale saat ini</p>
                 </div>
               ) : (
-                flashSaleProducts.map((product) => {
+                flashSaleProducts.map((product: any) => {
                   const discount = calculateDiscount(product);
                   const imageUrl = product.media?.[0]?.url || '/images/placeholder.png';
+                  
+                  // ⭐ Use pre-calculated stable stock values
+                  const remainingStock = product.flashSaleRemaining || 1;
+                  const soldItems = product.flashSaleSold || 0;
+                  
+                  // Progress bar: 10 items = 100%, 5 items = 50%, 1 item = 10%
+                  const stockPercentage = (remainingStock / 10) * 100;
                   
                   return (
                     <Link
@@ -374,22 +389,23 @@ const loadFlashSaleProducts = async () => {
                           unoptimized
                         />
                         {discount > 0 && (
-                          <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-bold">
+                          <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
                             -{discount}%
                           </div>
                         )}
+                        
+                        {/* ⭐ SHOPEE STYLE: Sold badge */}
+                        <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded text-xs font-bold">
+                          Terjual {soldItems >= 100 ? '100+' : soldItems >= 50 ? '50+' : '10+'}
+                        </div>
                       </div>
+                      
                       <div className="p-4">
-                        <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-2">
+                        <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-2 h-10">
                           {product.name}
                         </h3>
-                        {product.rating && (
-                          <div className="flex items-center gap-1 mb-2">
-                            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                            <span className="text-sm text-gray-600">{product.rating}</span>
-                          </div>
-                        )}
-                        <div className="mb-2">
+                        
+                        <div className="mb-3">
                           {product.compare_at_price && (
                             <div className="text-xs text-gray-400 line-through">
                               {formatCurrency(product.compare_at_price)}
@@ -399,18 +415,31 @@ const loadFlashSaleProducts = async () => {
                             {formatCurrency(product.price)}
                           </div>
                         </div>
-                        {product.stock > 0 ? (
-                          <>
-                            <div className="w-full bg-red-100 rounded-full h-2 mb-1">
+                        
+                        {/* ⭐ SHOPEE STYLE: Stock Progress Bar - MAX 10 ITEMS */}
+                        {remainingStock > 0 ? (
+                          <div className="mb-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs text-gray-600 font-medium">Tersisa</span>
+                              <span className="text-xs font-bold text-red-600">{remainingStock}</span>
+                            </div>
+                            {/* Bar dengan max 10 item = 100% */}
+                            <div className="w-full bg-red-100 rounded-full h-3 overflow-hidden">
                               <div 
-                                className="bg-red-600 h-2 rounded-full"
-                                style={{ width: `${Math.min((50 / product.stock) * 100, 100)}%` }}
+                                className="bg-gradient-to-r from-red-600 to-orange-500 h-3 rounded-full transition-all duration-500"
+                                style={{ width: `${stockPercentage}%` }}
                               />
                             </div>
-                            <p className="text-xs text-gray-500">Stok: {product.stock}</p>
-                          </>
+                            {remainingStock <= 3 && (
+                              <p className="text-xs text-red-600 mt-1 font-semibold">
+                                ⚡ Segera Habis!
+                              </p>
+                            )}
+                          </div>
                         ) : (
-                          <p className="text-xs text-red-600">Stok Habis</p>
+                          <div className="text-center py-2 bg-red-100 rounded text-xs font-bold text-red-600">
+                            HABIS
+                          </div>
                         )}
                       </div>
                     </Link>
@@ -575,7 +604,6 @@ const loadFlashSaleProducts = async () => {
       <section className="bg-black py-12 sm:py-16 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Card 1 - Mau Pesan Custom */}
             <Link href="/custom-order" className="group relative aspect-[16/10] rounded-2xl overflow-hidden hover:shadow-2xl transition-all">
               <Image
                 src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80"
@@ -595,7 +623,6 @@ const loadFlashSaleProducts = async () => {
               </div>
             </Link>
 
-            {/* Card 2 - Official Store */}
             <Link href="/stores" className="group relative aspect-[16/10] rounded-2xl overflow-hidden hover:shadow-2xl transition-all">
               <Image
                 src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80"

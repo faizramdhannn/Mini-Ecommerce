@@ -1,35 +1,72 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Zap, Clock } from 'lucide-react';
-import { ProductGrid } from '@/components/product/ProductGrid';
-import { Spinner } from '@/components/ui/Spinner';
-import { productService } from '@/lib/services/product.service';
-import type { Product } from '@/types';
 import Link from 'next/link';
 import Image from 'next/image';
-import { formatCurrency } from '@/lib/utils/format';
-import { useCartStore } from '@/lib/store/cart.store';
-import { useAuthStore } from '@/lib/store/auth.store';
-import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
+import { ArrowLeft, Zap } from 'lucide-react';
+import { productService } from '@/lib/services/product.service';
+import type { Product } from '@/types';
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+  }).format(amount);
+};
 
 export default function FlashSalePage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [flashSaleProducts, setFlashSaleProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [timeLeft, setTimeLeft] = useState({
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-  });
-  const { addItem, openCart } = useCartStore();
-  const { isAuthenticated } = useAuthStore();
-  const router = useRouter();
 
   useEffect(() => {
     loadFlashSaleProducts();
-    
-    // Countdown timer
+  }, []);
+
+  const loadFlashSaleProducts = async () => {
+    try {
+      setIsLoading(true);
+      const response = await productService.getProducts({ 
+        limit: 100,
+        is_flash_sale: true
+      });
+      
+      const flashSale = response.data.filter(product => product.is_flash_sale);
+
+      flashSale.sort((a, b) => {
+        const discountA = a.compare_at_price 
+          ? ((a.compare_at_price - a.price) / a.compare_at_price) * 100 
+          : 0;
+        const discountB = b.compare_at_price 
+          ? ((b.compare_at_price - b.price) / b.compare_at_price) * 100 
+          : 0;
+        return discountB - discountA;
+      });
+
+      // Add stable random remaining stock to each product
+      const flashSaleWithStock = flashSale.map(product => {
+        const actualRemaining = Math.min(product.stock, 10);
+        const remainingStock = Math.floor(Math.random() * actualRemaining) + 1;
+        
+        return {
+          ...product,
+          flashSaleRemaining: remainingStock,
+          flashSaleSold: product.stock - remainingStock
+        };
+      });
+
+      setFlashSaleProducts(flashSaleWithStock);
+    } catch (error) {
+      console.error('Failed to load flash sale products:', error);
+      setFlashSaleProducts([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Countdown Timer
+  useEffect(() => {
     const flashSaleEnd = new Date();
     flashSaleEnd.setHours(23, 59, 59, 999);
 
@@ -53,57 +90,6 @@ export default function FlashSalePage() {
     return () => clearInterval(timer);
   }, []);
 
-// Ganti fungsi loadFlashSaleProducts:
-const loadFlashSaleProducts = async () => {
-  try {
-    setIsLoading(true);
-    const response = await productService.getProducts({ 
-      limit: 100,
-      is_flash_sale: true
-    });
-    
-    const flashSale = response.data.filter(product => product.is_flash_sale);
-
-    // Sort by discount percentage
-    flashSale.sort((a, b) => {
-      const discountA = a.compare_at_price 
-        ? ((a.compare_at_price - a.price) / a.compare_at_price) * 100 
-        : 0;
-      const discountB = b.compare_at_price 
-        ? ((b.compare_at_price - b.price) / b.compare_at_price) * 100 
-        : 0;
-      return discountB - discountA;
-    });
-
-    setProducts(flashSale);
-  } catch (error) {
-    console.error('Failed to load flash sale products:', error);
-    setProducts([]);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-  const handleAddToCart = async (product: Product, e: React.MouseEvent) => {
-    e.preventDefault();
-    
-    if (!isAuthenticated) {
-      toast.error('Please login to add items to cart');
-      router.push('/login');
-      return;
-    }
-
-    try {
-      await addItem(product.id, 1);
-      toast.success('Added to cart!');
-      setTimeout(() => {
-        openCart();
-      }, 300);
-    } catch (error) {
-      toast.error('Failed to add to cart');
-    }
-  };
-
   const getProductSlug = (product: Product) => {
     return product.slug || product.name.toLowerCase().replace(/\s+/g, '-');
   };
@@ -113,158 +99,169 @@ const loadFlashSaleProducts = async () => {
     return Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100);
   };
 
-  // Calculate remaining stock (simulate sold percentage)
-  const getRemainingStock = (product: Product) => {
-    // Simulate 30-70% already sold
-    const soldPercentage = Math.floor(Math.random() * 40) + 30;
-    return Math.max(1, Math.floor(product.stock * (100 - soldPercentage) / 100));
-  };
-
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3 bg-gradient-to-r from-red-600 via-orange-600 to-yellow-600 text-white px-6 py-3 rounded-full mb-4">
-            <Zap className="w-6 h-6 fill-current animate-pulse" />
-            <span className="text-2xl font-bold">FLASH SALE</span>
-            <Zap className="w-6 h-6 fill-current animate-pulse" />
-          </div>
-          
-          <h1 className="text-3xl sm:text-4xl font-bold mb-3">
-            Diskon Hingga 70%! ⚡
-          </h1>
-          <p className="text-gray-400 text-lg mb-6">
-            Buruan! Penawaran terbatas, selagi stok masih ada
-          </p>
+    <div className="min-h-screen bg-gradient-to-b from-orange-600 via-red-500 to-black">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-red-600 to-orange-600 sticky top-0 z-50 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Link href="/" className="text-white hover:text-gray-200 transition-colors">
+                <ArrowLeft className="w-6 h-6" />
+              </Link>
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 backdrop-blur-sm p-3 rounded-full">
+                  <Zap className="w-8 h-8 text-white fill-current animate-pulse" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-white">FLASH SALE</h1>
+                  <p className="text-white/90 text-sm">Diskon hingga 70%!</p>
+                </div>
+              </div>
+            </div>
 
-          {/* Countdown */}
-          <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-6 py-4">
-            <Clock className="w-6 h-6 text-red-500" />
-            <div className="flex items-center gap-2">
-              <div className="text-center">
-                <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg font-bold text-2xl min-w-[60px]">
-                  {String(timeLeft.hours).padStart(2, '0')}
+            {/* Countdown */}
+            <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2">
+              <span className="text-white text-sm font-medium">Berakhir dalam:</span>
+              <div className="flex items-center gap-1">
+                <div className="text-center">
+                  <div className="bg-white text-red-600 px-3 py-2 rounded-lg font-bold text-xl min-w-[50px]">
+                    {String(timeLeft.hours).padStart(2, '0')}
+                  </div>
+                  <div className="text-xs text-white mt-1">JAM</div>
                 </div>
-                <div className="text-xs text-gray-400 mt-1">JAM</div>
-              </div>
-              <span className="text-2xl font-bold">:</span>
-              <div className="text-center">
-                <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg font-bold text-2xl min-w-[60px]">
-                  {String(timeLeft.minutes).padStart(2, '0')}
+                <span className="text-white font-bold">:</span>
+                <div className="text-center">
+                  <div className="bg-white text-red-600 px-3 py-2 rounded-lg font-bold text-xl min-w-[50px]">
+                    {String(timeLeft.minutes).padStart(2, '0')}
+                  </div>
+                  <div className="text-xs text-white mt-1">MENIT</div>
                 </div>
-                <div className="text-xs text-gray-400 mt-1">MENIT</div>
-              </div>
-              <span className="text-2xl font-bold">:</span>
-              <div className="text-center">
-                <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg font-bold text-2xl min-w-[60px]">
-                  {String(timeLeft.seconds).padStart(2, '0')}
+                <span className="text-white font-bold">:</span>
+                <div className="text-center">
+                  <div className="bg-white text-red-600 px-3 py-2 rounded-lg font-bold text-xl min-w-[50px]">
+                    {String(timeLeft.seconds).padStart(2, '0')}
+                  </div>
+                  <div className="text-xs text-white mt-1">DETIK</div>
                 </div>
-                <div className="text-xs text-gray-400 mt-1">DETIK</div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Products */}
+      {/* Products Grid */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {isLoading ? (
-          <div className="py-12">
-            <Spinner size="lg" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {Array.from({ length: 20 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl overflow-hidden animate-pulse">
+                <div className="aspect-square bg-gray-200" />
+                <div className="p-4">
+                  <div className="h-4 bg-gray-200 rounded mb-2" />
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+                  <div className="h-6 bg-gray-200 rounded w-1/2" />
+                </div>
+              </div>
+            ))}
           </div>
-        ) : products.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-400 text-lg">
-              Belum ada produk flash sale saat ini
-            </p>
+        ) : flashSaleProducts.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-12 max-w-md mx-auto">
+              <Zap className="w-16 h-16 text-white mx-auto mb-4 opacity-50" />
+              <h2 className="text-2xl font-bold text-white mb-2">Tidak Ada Flash Sale</h2>
+              <p className="text-white/80">Flash sale sedang tidak tersedia saat ini</p>
+              <Link href="/">
+                <button className="mt-6 bg-white text-red-600 px-6 py-3 rounded-full font-bold hover:bg-gray-100 transition-all">
+                  Kembali ke Beranda
+                </button>
+              </Link>
+            </div>
           </div>
         ) : (
-          <>
-            <div className="mb-6 text-center">
-              <p className="text-gray-300">
-                Menampilkan <span className="font-bold text-white">{products.length}</span> produk dengan diskon besar
-              </p>
-            </div>
-
-            {/* Custom Product Grid for Flash Sale */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-              {products.map((product) => {
-                const discount = calculateDiscount(product);
-                const imageUrl = product.media?.[0]?.url || '/images/placeholder.png';
-                const remainingStock = getRemainingStock(product);
-                const soldPercentage = Math.round(((product.stock - remainingStock) / product.stock) * 100);
-                
-                return (
-                  <Link
-                    key={product.id}
-                    href={`/products/${getProductSlug(product)}`}
-                    className="group block"
-                  >
-                    <div className="bg-white rounded-xl overflow-hidden transition-all duration-300 hover:shadow-2xl border border-gray-100">
-                      <div className="relative aspect-square overflow-hidden bg-gray-100">
-                        <Image
-                          src={imageUrl}
-                          alt={product.name}
-                          fill
-                          className="object-cover group-hover:scale-110 transition-transform duration-300"
-                          unoptimized
-                        />
-                        {discount > 0 && (
-                          <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg z-10">
-                            -{discount}%
-                          </div>
-                        )}
-                        <div className="absolute top-2 left-2 bg-gradient-to-r from-red-600 to-orange-600 text-white px-2 py-1 rounded-full flex items-center gap-1 text-xs font-bold shadow-lg z-10 animate-pulse">
-                          <Zap className="w-3 h-3 fill-current" />
-                          FLASH
-                        </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {flashSaleProducts.map((product: any) => {
+              const discount = calculateDiscount(product);
+              const imageUrl = product.media?.[0]?.url || '/images/placeholder.png';
+              
+              // ⭐ Use pre-calculated stable stock values
+              const remainingStock = product.flashSaleRemaining || 1;
+              const soldItems = product.flashSaleSold || 0;
+              
+              // Progress bar: 10 items = 100%, 5 items = 50%, 1 item = 10%
+              const stockPercentage = (remainingStock / 10) * 100;
+              
+              return (
+                <Link
+                  key={product.id}
+                  href={`/products/${getProductSlug(product)}`}
+                  className="bg-white rounded-xl overflow-hidden hover:shadow-2xl transition-all group"
+                >
+                  <div className="relative aspect-square overflow-hidden">
+                    <Image
+                      src={imageUrl}
+                      alt={product.name}
+                      fill
+                      className="object-cover group-hover:scale-110 transition-transform duration-300"
+                      unoptimized
+                    />
+                    {discount > 0 && (
+                      <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
+                        -{discount}%
                       </div>
-                      
-                      <div className="p-4">
-                        <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-2 h-10">
-                          {product.name}
-                        </h3>
-                        
-                        <div className="mb-3">
-                          {product.compare_at_price && (
-                            <div className="text-xs text-gray-400 line-through">
-                              {formatCurrency(product.compare_at_price)}
-                            </div>
-                          )}
-                          <div className="text-lg font-bold text-red-600">
-                            {formatCurrency(product.price)}
-                          </div>
+                    )}
+                    
+                    {/* ⭐ SHOPEE STYLE: Sold badge */}
+                    <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded text-xs font-bold">
+                      Terjual {soldItems >= 100 ? '100+' : soldItems >= 50 ? '50+' : '10+'}
+                    </div>
+                  </div>
+                  
+                  <div className="p-4">
+                    <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-2 h-10">
+                      {product.name}
+                    </h3>
+                    
+                    <div className="mb-3">
+                      {product.compare_at_price && (
+                        <div className="text-xs text-gray-400 line-through">
+                          {formatCurrency(product.compare_at_price)}
                         </div>
-
-                        {/* Stock Progress Bar - Showing Remaining */}
-                        <div className="mb-3">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-gray-600">Tersisa</span>
-                            <span className="text-xs font-bold text-red-600">{remainingStock}</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                            <div 
-                              className="bg-gradient-to-r from-red-600 to-orange-600 h-2.5 rounded-full transition-all duration-500"
-                              style={{ width: `${Math.max(5, 100 - soldPercentage)}%` }}
-                            />
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {soldPercentage}% Terjual
-                          </p>
-                        </div>
-
-                        <button
-                          onClick={(e) => handleAddToCart(product, e)}
-                          className="w-full bg-gradient-to-r from-red-600 to-orange-600 text-white py-2 rounded-lg font-semibold hover:from-red-700 hover:to-orange-700 transition-all text-sm"
-                        >
-                          Beli Sekarang
-                        </button>
+                      )}
+                      <div className="text-lg font-bold text-red-600">
+                        {formatCurrency(product.price)}
                       </div>
                     </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </>
+                    
+                    {/* ⭐ SHOPEE STYLE: Stock Progress Bar */}
+                    {remainingStock > 0 ? (
+                      <div className="mb-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-600 font-medium">Tersisa</span>
+                          <span className="text-xs font-bold text-red-600">{remainingStock}</span>
+                        </div>
+                        <div className="w-full bg-red-100 rounded-full h-3 overflow-hidden">
+                          <div 
+                            className="bg-gradient-to-r from-red-600 to-orange-500 h-3 rounded-full transition-all duration-500"
+                            style={{ width: `${stockPercentage}%` }}
+                          />
+                        </div>
+                        {remainingStock <= 3 && (
+                          <p className="text-xs text-red-600 mt-1 font-semibold">
+                            ⚡ Segera Habis!
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-2 bg-red-100 rounded text-xs font-bold text-red-600">
+                        HABIS
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

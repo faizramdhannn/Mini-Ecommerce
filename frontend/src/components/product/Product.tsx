@@ -36,7 +36,7 @@ export const ProductCard = ({ product }: ProductCardProps) => {
     }
   };
 
-  const imageUrl = product.media?.[0]?.url || '/images/placeholder.png';
+  const imageUrl = product.media?.[0]?.url || '';
 
   return (
     <Link href={`/products/${product.id}`} className="group">
