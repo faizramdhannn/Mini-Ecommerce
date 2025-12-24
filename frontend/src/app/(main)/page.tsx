@@ -40,32 +40,37 @@ const CATEGORIES = [
   {
     id: 1,
     name: 'Accessories',
+    slug: 'accessories',
     image: 'https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=600&q=80',
-    link: '/collections/accessories'
+    link: '/collections/all-product?category=accessories'
   },
   {
     id: 2,
     name: 'Cross Body Bag',
+    slug: 'cross-body-bag',
     image: 'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=600&q=80',
-    link: '/collections/cross-body-bag'
+    link: '/collections/all-product?category=cross-body-bag'
   },
   {
     id: 3,
     name: 'Laptop Sleeve',
+    slug: 'laptop-sleeve',
     image: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&q=80',
-    link: '/collections/laptop-sleeve'
+    link: '/collections/all-product?category=laptop-sleeve'
   },
   {
     id: 4,
     name: 'Messenger Bag',
+    slug: 'messenger-bag',
     image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80',
-    link: '/collections/messenger-bag'
+    link: '/collections/all-product?category=messenger-bag'
   },
   {
     id: 5,
     name: 'Sling Bag',
+    slug: 'sling-bag',
     image: 'https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?w=600&q=80',
-    link: '/collections/sling-bag'
+    link: '/collections/all-product?category=sling-bag'
   }
 ];
 
@@ -221,6 +226,11 @@ export default function HomePage() {
     return Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100);
   };
 
+  // ⭐ Calculate max discount from flash sale products
+  const maxDiscount = flashSaleProducts.length > 0 
+    ? Math.max(...flashSaleProducts.map(p => calculateDiscount(p)))
+    : 0;
+
   return (
     <div className="min-h-screen bg-black">
       {/* Hero Section */}
@@ -304,7 +314,9 @@ export default function HomePage() {
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
                   FLASH SALE ⚡
                 </h2>
-                <p className="text-white/90 text-sm sm:text-base">Diskon hingga 70%!</p>
+                <p className="text-white/90 text-sm sm:text-base">
+                  Diskon hingga {maxDiscount}%!
+                </p>
               </div>
             </div>
 

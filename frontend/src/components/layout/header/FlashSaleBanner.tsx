@@ -11,6 +11,56 @@ export const FlashSaleBanner = () => {
     minutes: 0,
     seconds: 0,
   });
+  const [colorScheme, setColorScheme] = useState({
+    gradient: 'from-red-600 via-orange-600 to-yellow-600',
+    buttonBg: 'bg-white',
+    buttonText: 'text-red-600',
+    shimmer: 'from-transparent via-white to-transparent',
+  });
+
+  // Get color scheme based on current hour
+  const getColorScheme = () => {
+    const hour = new Date().getHours();
+    
+    // 00:00 - 08:00 = Orange (seperti sekarang)
+    if (hour >= 0 && hour < 8) {
+      return {
+        gradient: 'from-red-600 via-orange-600 to-yellow-600',
+        buttonBg: 'bg-white',
+        buttonText: 'text-red-600',
+        shimmer: 'from-transparent via-white to-transparent',
+      };
+    }
+    // 08:00 - 16:00 = Blue
+    else if (hour >= 8 && hour < 16) {
+      return {
+        gradient: 'from-blue-600 via-cyan-500 to-blue-400',
+        buttonBg: 'bg-white',
+        buttonText: 'text-blue-600',
+        shimmer: 'from-transparent via-white to-transparent',
+      };
+    }
+    // 16:00 - 24:00 = Dark
+    else {
+      return {
+        gradient: 'from-gray-900 via-gray-800 to-gray-700',
+        buttonBg: 'bg-white',
+        buttonText: 'text-gray-900',
+        shimmer: 'from-transparent via-gray-600 to-transparent',
+      };
+    }
+  };
+
+  // Update color scheme when component mounts and every minute
+  useEffect(() => {
+    setColorScheme(getColorScheme());
+    
+    const interval = setInterval(() => {
+      setColorScheme(getColorScheme());
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Countdown timer
   useEffect(() => {
@@ -40,14 +90,15 @@ export const FlashSaleBanner = () => {
   if (!isVisible) return null;
 
   return (
-    <div className="bg-gradient-to-r from-red-600 via-orange-600 to-yellow-600 text-white relative overflow-hidden">
+    <div className={`bg-gradient-to-r ${colorScheme.gradient} text-white relative overflow-hidden transition-all duration-1000`}>
       {/* Animated background */}
       <div className="absolute inset-0 opacity-20">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent animate-shimmer" 
-             style={{ 
-               backgroundSize: '200% 100%',
-               animation: 'shimmer 2s infinite'
-             }} 
+        <div 
+          className={`absolute inset-0 bg-gradient-to-r ${colorScheme.shimmer} animate-shimmer`}
+          style={{ 
+            backgroundSize: '200% 100%',
+            animation: 'shimmer 2s infinite'
+          }} 
         />
       </div>
 
@@ -80,7 +131,7 @@ export const FlashSaleBanner = () => {
           {/* CTA */}
           <Link 
             href="/flash-sale" 
-            className="bg-white text-red-600 px-4 py-1.5 rounded-full font-bold text-xs sm:text-sm hover:bg-gray-100 transition-colors shadow-lg"
+            className={`${colorScheme.buttonBg} ${colorScheme.buttonText} px-4 py-1.5 rounded-full font-bold text-xs sm:text-sm hover:opacity-90 transition-all shadow-lg`}
           >
             BELANJA SEKARANG →
           </Link>

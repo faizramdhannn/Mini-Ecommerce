@@ -1,4 +1,4 @@
-import { Header } from '@/components/layout/header/Header';
+import Header from '@/components/layout/header/Header';
 import { Footer } from '@/components/layout/footer/Footer';
 import { CartDrawer } from '@/components/cart/CartDrawer';
 import { FlashSaleBanner } from '@/components/layout/header/FlashSaleBanner'; // TAMBAHKAN
