@@ -1,8 +1,10 @@
+// frontend/src/components/cart/CartDrawer.tsx - UPDATED VERSION WITH AUTO-SYNC
 'use client';
 
 import { useEffect, useState } from 'react';
 import { X, ShoppingBag } from 'lucide-react';
 import { useCartStore } from '@/lib/store/cart.store';
+import { useAutoRefresh } from '@/lib/hooks/useAutoRefresh';
 import { CartItem } from './CartItem';
 import { Button } from '../ui/Button';
 import { formatCurrency } from '@/lib/utils/format';
@@ -14,6 +16,13 @@ export const CartDrawer = () => {
   const { cart, isOpen, closeCart, fetchCart } = useCartStore();
   const router = useRouter();
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+
+  // ⭐ Auto-refresh cart every 5 seconds when drawer is open
+  const { refresh } = useAutoRefresh({
+    interval: 5000, // 5 seconds
+    enabled: isOpen, // Only refresh when drawer is open
+    onRefresh: fetchCart,
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -45,16 +54,13 @@ export const CartDrawer = () => {
     if (!cart?.items) return;
     
     if (selectedItems.size === cart.items.length) {
-      // Deselect all
       setSelectedItems(new Set());
     } else {
-      // Select all
       const allItemIds = new Set(cart.items.map((item: CartItemType) => item.id));
       setSelectedItems(allItemIds);
     }
   };
 
-  // Calculate totals for selected items only
   const calculateSelectedTotals = () => {
     if (!cart?.items) return { subtotal: 0, count: 0 };
 
@@ -81,12 +87,10 @@ export const CartDrawer = () => {
       return;
     }
 
-    // Get selected items data
     const selectedCartItems = cart?.items?.filter((item: CartItemType) => 
       selectedItems.has(item.id)
     ) || [];
     
-    // Store selected items in sessionStorage for checkout
     sessionStorage.setItem('checkoutItems', JSON.stringify(selectedCartItems));
     
     closeCart();
@@ -99,13 +103,11 @@ export const CartDrawer = () => {
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity"
         onClick={closeCart}
       />
 
-      {/* Drawer */}
       <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-xl z-50 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
@@ -120,6 +122,16 @@ export const CartDrawer = () => {
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* ⭐ Auto-sync indicator */}
+        {isOpen && (
+          <div className="bg-blue-50 border-b border-blue-200 px-6 py-2">
+            <p className="text-xs text-blue-600 flex items-center gap-1">
+              <span className="animate-pulse">🔄</span>
+              Sinkronisasi otomatis setiap 5 detik
+            </p>
+          </div>
+        )}
 
         {/* Select All Section */}
         {cart?.items && cart.items.length > 0 && (

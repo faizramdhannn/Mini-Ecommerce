@@ -1,3 +1,4 @@
+// frontend/src/app/(main)/flash-sale/page.tsx - UPDATED VERSION
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -5,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Zap } from 'lucide-react';
 import { productService } from '@/lib/services/product.service';
+import { useAutoRefresh } from '@/lib/hooks/useAutoRefresh';
 import type { Product } from '@/types';
 
 const formatCurrency = (amount: number) => {
@@ -20,11 +22,18 @@ export default function FlashSalePage() {
   const [flashSaleProducts, setFlashSaleProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ⭐ Auto-refresh every 10 seconds
+  const { refresh } = useAutoRefresh({
+    interval: 10000, // 10 seconds
+    enabled: true,
+    onRefresh: loadFlashSaleProducts,
+  });
+
   useEffect(() => {
     loadFlashSaleProducts();
   }, []);
 
-  const loadFlashSaleProducts = async () => {
+  async function loadFlashSaleProducts() {
     try {
       setIsLoading(true);
       const response = await productService.getProducts({ 
@@ -44,7 +53,6 @@ export default function FlashSalePage() {
         return discountB - discountA;
       });
 
-      // Add stable random remaining stock to each product
       const flashSaleWithStock = flashSale.map(product => {
         const actualRemaining = Math.min(product.stock, 10);
         const remainingStock = Math.floor(Math.random() * actualRemaining) + 1;
@@ -63,7 +71,7 @@ export default function FlashSalePage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   // Countdown Timer
   useEffect(() => {
@@ -150,6 +158,11 @@ export default function FlashSalePage() {
         </div>
       </div>
 
+      {/* ⭐ Auto-refresh indicator */}
+      <div className="bg-blue-500 text-white text-center py-1 text-xs">
+        🔄 Data diperbarui otomatis setiap 10 detik
+      </div>
+
       {/* Products Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {isLoading ? (
@@ -184,11 +197,8 @@ export default function FlashSalePage() {
               const discount = calculateDiscount(product);
               const imageUrl = product.media?.[0]?.url || '/images/placeholder.png';
               
-              // ⭐ Use pre-calculated stable stock values
               const remainingStock = product.flashSaleRemaining || 1;
               const soldItems = product.flashSaleSold || 0;
-              
-              // Progress bar: 10 items = 100%, 5 items = 50%, 1 item = 10%
               const stockPercentage = (remainingStock / 10) * 100;
               
               return (
@@ -211,7 +221,6 @@ export default function FlashSalePage() {
                       </div>
                     )}
                     
-                    {/* ⭐ SHOPEE STYLE: Sold badge */}
                     <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded text-xs font-bold">
                       Terjual {soldItems >= 100 ? '100+' : soldItems >= 50 ? '50+' : '10+'}
                     </div>
@@ -233,7 +242,6 @@ export default function FlashSalePage() {
                       </div>
                     </div>
                     
-                    {/* ⭐ SHOPEE STYLE: Stock Progress Bar */}
                     {remainingStock > 0 ? (
                       <div className="mb-2">
                         <div className="flex items-center justify-between mb-1">

@@ -218,14 +218,6 @@ export default function ProductDetailPage() {
             )}
           </div>
 
-          {/* Stock Status */}
-          <div className="mb-6 flex items-center gap-2">
-            <span className="text-sm font-medium">Availability:</span>
-            <span className={`text-sm font-semibold ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
-            </span>
-          </div>
-
           {/* Quantity Selector */}
           <div className="mb-6">
             <label className="block text-sm font-medium mb-3">Quantity</label>

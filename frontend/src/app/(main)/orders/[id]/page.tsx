@@ -1,3 +1,4 @@
+// frontend/src/app/(main)/orders/[id]/page.tsx - UPDATED WITH AUTO-REFRESH
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { orderService } from '@/lib/services/order.service';
+import { useAutoRefresh } from '@/lib/hooks/useAutoRefresh';
 import { formatCurrency, formatDateTime } from '@/lib/utils/format';
 import { ORDER_STATUS } from '@/lib/utils/constants';
 import type { Order } from '@/types';
@@ -21,11 +23,18 @@ export default function OrderDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [copiedResi, setCopiedResi] = useState(false);
 
+  // ⭐ Auto-refresh order status every 10 seconds
+  const { refresh } = useAutoRefresh({
+    interval: 10000, // 10 seconds
+    enabled: !!order, // Only when order is loaded
+    onRefresh: loadOrder,
+  });
+
   useEffect(() => {
     loadOrder();
   }, [params.id]);
 
-  const loadOrder = async () => {
+  async function loadOrder() {
     try {
       const data = await orderService.getOrder(Number(params.id));
       console.log('Order loaded:', data);
@@ -33,11 +42,13 @@ export default function OrderDetailPage() {
     } catch (error) {
       console.error('Failed to load order:', error);
       toast.error('Failed to load order');
-      router.push('/orders');
+      if (isLoading) {
+        router.push('/orders');
+      }
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   const handleCopyResi = (trackingNumber: string) => {
     navigator.clipboard.writeText(trackingNumber);
@@ -62,9 +73,7 @@ export default function OrderDetailPage() {
     );
   };
 
-  // ✅ FIXED: Helper function to get product image URL with proper fallback
   const getProductImage = (item: any) => {
-    // Check all possible image locations in order of priority
     const possibleImages = [
       item.product?.media?.[0]?.url,
       item.product?.media?.[0],
@@ -72,10 +81,8 @@ export default function OrderDetailPage() {
       item.product_image_snapshot,
     ];
 
-    // Find first valid image URL
     for (const img of possibleImages) {
       if (img) {
-        // Handle both string URLs and media objects
         const url = typeof img === 'string' ? img : img?.url;
         if (url && url.trim() !== '') {
           return url;
@@ -83,7 +90,6 @@ export default function OrderDetailPage() {
       }
     }
 
-    // Use placeholder image
     return '/images/placeholder.png';
   };
 
@@ -110,6 +116,12 @@ export default function OrderDetailPage() {
           Back to Orders
         </button>
 
+        {/* ⭐ Auto-refresh indicator */}
+        <div className="bg-blue-500 text-white rounded-lg p-3 mb-6 flex items-center gap-2">
+          <span className="animate-pulse">🔄</span>
+          <span className="text-sm">Status pesanan diperbarui otomatis setiap 10 detik</span>
+        </div>
+
         <div className="bg-white rounded-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -121,7 +133,7 @@ export default function OrderDetailPage() {
             {getStatusBadge(order.status)}
           </div>
 
-          {/* Tracking Number Card - Show when PAID or later */}
+          {/* Tracking Number Card */}
           {isPaid && (
             <div className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg p-6">
               <div className="flex items-start justify-between mb-4">
@@ -181,7 +193,6 @@ export default function OrderDetailPage() {
                 
                 return (
                   <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                    {/* ✅ FIXED: Product Image with proper error handling */}
                     <div className="relative w-20 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
                       <Image
                         src={imageUrl}
@@ -196,13 +207,11 @@ export default function OrderDetailPage() {
                       />
                     </div>
                     
-                    {/* Product Info */}
                     <div className="flex-1 min-w-0">
                       <h3 className="text-black font-medium mb-1 line-clamp-2">
                         {item.product_name_snapshot}
                       </h3>
                       
-                      {/* Brand & Category */}
                       {(item.product?.brand?.name || item.product?.category?.name) && (
                         <p className="text-sm text-gray-600 mb-2">
                           {item.product?.brand?.name && (
@@ -217,7 +226,6 @@ export default function OrderDetailPage() {
                         </p>
                       )}
                       
-                      {/* Price Details */}
                       <div className="flex items-center gap-4 flex-wrap">
                         <p className="text-sm text-gray-600">
                           <span className="font-medium text-gray-900">
