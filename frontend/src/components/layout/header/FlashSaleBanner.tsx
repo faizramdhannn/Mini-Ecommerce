@@ -22,7 +22,7 @@ export const FlashSaleBanner = () => {
   const getColorScheme = () => {
     const hour = new Date().getHours();
     
-    // 00:00 - 08:00 = Orange (seperti sekarang)
+    // 00:00 - 08:00 = Orange/Red (Morning)
     if (hour >= 0 && hour < 8) {
       return {
         gradient: 'from-red-600 via-orange-600 to-yellow-600',
@@ -31,7 +31,7 @@ export const FlashSaleBanner = () => {
         shimmer: 'from-transparent via-white to-transparent',
       };
     }
-    // 08:00 - 16:00 = Blue
+    // 08:00 - 16:00 = Blue (Day)
     else if (hour >= 8 && hour < 16) {
       return {
         gradient: 'from-blue-600 via-cyan-500 to-blue-400',
@@ -40,13 +40,13 @@ export const FlashSaleBanner = () => {
         shimmer: 'from-transparent via-white to-transparent',
       };
     }
-    // 16:00 - 24:00 = Dark
+    // 16:00 - 24:00 = Purple/Dark (Night)
     else {
       return {
-        gradient: 'from-gray-900 via-gray-800 to-gray-700',
+        gradient: 'from-purple-900 via-purple-700 to-indigo-600',
         buttonBg: 'bg-white',
-        buttonText: 'text-gray-900',
-        shimmer: 'from-transparent via-gray-600 to-transparent',
+        buttonText: 'text-purple-900',
+        shimmer: 'from-transparent via-purple-400 to-transparent',
       };
     }
   };
@@ -64,15 +64,14 @@ export const FlashSaleBanner = () => {
 
   // Countdown timer
   useEffect(() => {
-    const flashSaleEnd = new Date();
-    flashSaleEnd.setHours(23, 59, 59, 999);
+    const updateCountdown = () => {
+      const now = new Date();
+      const flashSaleEnd = new Date();
+      flashSaleEnd.setHours(23, 59, 59, 999);
 
-    const timer = setInterval(() => {
-      const now = new Date().getTime();
-      const distance = flashSaleEnd.getTime() - now;
+      const distance = flashSaleEnd.getTime() - now.getTime();
 
       if (distance < 0) {
-        clearInterval(timer);
         setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
         return;
       }
@@ -82,7 +81,10 @@ export const FlashSaleBanner = () => {
       const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
       setTimeLeft({ hours, minutes, seconds });
-    }, 1000);
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(timer);
   }, []);
@@ -94,7 +96,7 @@ export const FlashSaleBanner = () => {
       {/* Animated background */}
       <div className="absolute inset-0 opacity-20">
         <div 
-          className={`absolute inset-0 bg-gradient-to-r ${colorScheme.shimmer} animate-shimmer`}
+          className={`absolute inset-0 bg-gradient-to-r ${colorScheme.shimmer}`}
           style={{ 
             backgroundSize: '200% 100%',
             animation: 'shimmer 2s infinite'

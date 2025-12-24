@@ -520,10 +520,10 @@ export default function HomePage() {
       <section className="bg-black max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20">
         <div className="text-center mb-8 sm:mb-12">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4">
-            Featured Products
+            Top Products
           </h2>
           <p className="text-sm text-white sm:text-base md:text-lg max-w-2xl mx-auto mb-6">
-            Check out our latest arrivals and trending items
+            Check out our best seller and trending items
           </p>
           <Link href="/collections/all-product">
             <button className="bg-white text-black px-6 py-3 rounded-full font-semibold hover:bg-gray-200 transition-all border-2 border-white">

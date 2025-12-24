@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type { Category, Brand, ProductFilters } from '@/types';
 import { Input } from '../ui/Input';
 import { productService } from '@/lib/services/product.service';
@@ -11,13 +12,23 @@ interface ProductFilterProps {
 }
 
 export const ProductFilter = ({ onFilterChange }: ProductFilterProps) => {
+  const searchParams = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [filters, setFilters] = useState<ProductFilters>({});
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedBrand, setSelectedBrand] = useState<number | undefined>();
   
   // Single price range with min and max
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(5000000);
+
+  // ⭐ Read initial category from URL params
+  useEffect(() => {
+    const categoryFromUrl = searchParams.get('category');
+    if (categoryFromUrl) {
+      setSelectedCategory(categoryFromUrl);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadFilters();
@@ -36,9 +47,25 @@ export const ProductFilter = ({ onFilterChange }: ProductFilterProps) => {
     }
   };
 
-  const handleFilterChange = (key: keyof ProductFilters, value: any) => {
-    const newFilters = { ...filters, [key]: value };
-    setFilters(newFilters);
+  const handleCategoryChange = (categorySlug: string | undefined) => {
+    setSelectedCategory(categorySlug || '');
+    const newFilters: ProductFilters = {
+      category_slug: categorySlug,
+      brand_id: selectedBrand,
+      min_price: minPrice,
+      max_price: maxPrice,
+    };
+    onFilterChange(newFilters);
+  };
+
+  const handleBrandChange = (brandId: number | undefined) => {
+    setSelectedBrand(brandId);
+    const newFilters: ProductFilters = {
+      category_slug: selectedCategory || undefined,
+      brand_id: brandId,
+      min_price: minPrice,
+      max_price: maxPrice,
+    };
     onFilterChange(newFilters);
   };
 
@@ -48,11 +75,23 @@ export const ProductFilter = ({ onFilterChange }: ProductFilterProps) => {
     if (type === 'min') {
       const newMin = Math.min(value, maxPrice - 50000);
       setMinPrice(newMin);
-      handleFilterChange('min_price', newMin);
+      const newFilters: ProductFilters = {
+        category_slug: selectedCategory || undefined,
+        brand_id: selectedBrand,
+        min_price: newMin,
+        max_price: maxPrice,
+      };
+      onFilterChange(newFilters);
     } else {
       const newMax = Math.max(value, minPrice + 50000);
       setMaxPrice(newMax);
-      handleFilterChange('max_price', newMax);
+      const newFilters: ProductFilters = {
+        category_slug: selectedCategory || undefined,
+        brand_id: selectedBrand,
+        min_price: minPrice,
+        max_price: newMax,
+      };
+      onFilterChange(newFilters);
     }
   };
 
@@ -70,7 +109,8 @@ export const ProductFilter = ({ onFilterChange }: ProductFilterProps) => {
             <input
               type="radio"
               name="category"
-              onChange={() => handleFilterChange('category_slug', undefined)}
+              checked={!selectedCategory}
+              onChange={() => handleCategoryChange(undefined)}
               className="w-4 h-4"
             />
             <span className="text-sm">All Categories</span>
@@ -80,7 +120,8 @@ export const ProductFilter = ({ onFilterChange }: ProductFilterProps) => {
               <input
                 type="radio"
                 name="category"
-                onChange={() => handleFilterChange('category_slug', category.slug)}
+                checked={selectedCategory === category.slug}
+                onChange={() => handleCategoryChange(category.slug)}
                 className="w-4 h-4"
               />
               <span className="text-sm">{category.name}</span>
@@ -97,7 +138,8 @@ export const ProductFilter = ({ onFilterChange }: ProductFilterProps) => {
             <input
               type="radio"
               name="brand"
-              onChange={() => handleFilterChange('brand_id', undefined)}
+              checked={!selectedBrand}
+              onChange={() => handleBrandChange(undefined)}
               className="w-4 h-4"
             />
             <span className="text-sm">All Brands</span>
@@ -107,7 +149,8 @@ export const ProductFilter = ({ onFilterChange }: ProductFilterProps) => {
               <input
                 type="radio"
                 name="brand"
-                onChange={() => handleFilterChange('brand_id', brand.id)}
+                checked={selectedBrand === brand.id}
+                onChange={() => handleBrandChange(brand.id)}
                 className="w-4 h-4"
               />
               <span className="text-sm">{brand.name}</span>
