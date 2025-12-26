@@ -1,114 +1,81 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { X, Search, Tag, Check } from 'lucide-react';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { voucherService } from '@/lib/services/voucher.service';
-import { formatCurrency } from '@/lib/utils/format';
+import { X, Tag, Loader2 } from 'lucide-react';
 import type { Voucher } from '@/types/voucher';
-import toast from 'react-hot-toast';
+import { formatCurrency } from '@/lib/utils/format';
 
-interface VoucherModalProps {
+interface VoucherListModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onApply: (voucher: Voucher) => void;
+  vouchers: Voucher[];
+  isLoading: boolean;
   subtotal: number;
+  onApplyVoucher: (voucher: Voucher) => void;
+  appliedVoucherCode?: string;
 }
 
-export const VoucherModal = ({ isOpen, onClose, onApply, subtotal }: VoucherModalProps) => {
-  const [vouchers, setVouchers] = useState<Voucher[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [manualCode, setManualCode] = useState('');
-  const [isApplying, setIsApplying] = useState(false);
-  const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      loadVouchers();
-    }
-  }, [isOpen]);
-
-  const loadVouchers = async () => {
-    setIsLoading(true);
-    try {
-      const data = await voucherService.getAvailableVouchers();
-      setVouchers(data);
-    } catch (error) {
-      console.error('Failed to load vouchers:', error);
-      setVouchers([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleApplyManual = async () => {
-    if (!manualCode.trim()) {
-      toast.error('Please enter voucher code');
-      return;
-    }
-
-    setIsApplying(true);
-    try {
-      const result = await voucherService.applyVoucher({
-        code: manualCode.trim(),
-        subtotal,
-      });
-
-      if (result.valid && result.voucher) {
-        onApply(result.voucher);
-      } else {
-        toast.error(result.message);
-      }
-    } catch (error) {
-      toast.error('Failed to apply voucher');
-    } finally {
-      setIsApplying(false);
-    }
-  };
-
-  const handleSelectVoucher = (voucher: Voucher) => {
-    setSelectedVoucher(voucher);
-  };
-
-  const handleConfirm = () => {
-    if (selectedVoucher) {
-      onApply(selectedVoucher);
-    }
-  };
-
-  const isVoucherEligible = (voucher: Voucher) => {
-    if (!voucher.is_active) return false;
-    if (voucher.min_purchase && subtotal < voucher.min_purchase) return false;
-    
-    const now = new Date();
-    const validFrom = new Date(voucher.valid_from);
-    const validUntil = new Date(voucher.valid_until);
-    
-    return now >= validFrom && now <= validUntil;
-  };
-
-  const getVoucherValue = (voucher: Voucher) => {
-    if (voucher.type === 'FREE_SHIPPING') {
-      return 'FREE SHIPPING';
-    }
-    if (voucher.discount_amount) {
-      return formatCurrency(voucher.discount_amount);
-    }
-    return '';
-  };
-
+export default function VoucherListModal({
+  isOpen,
+  onClose,
+  vouchers,
+  isLoading,
+  subtotal,
+  onApplyVoucher,
+  appliedVoucherCode,
+}: VoucherListModalProps) {
   if (!isOpen) return null;
 
+  const isVoucherEligible = (voucher: Voucher) => {
+    // Fix: Handle undefined min_purchase
+    return subtotal >= (voucher.min_purchase ?? 0);
+  };
+
+  const getDiscountBadge = (voucher: Voucher) => {
+    // Fix: All properties are now required in Voucher type
+    if (voucher.discount_type === 'free_shipping') {
+      return (
+        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-semibold">
+          FREE SHIPPING
+        </span>
+      );
+    }
+    
+    if (voucher.discount_type === 'fixed') {
+      return (
+        <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-semibold">
+          Diskon {formatCurrency(voucher.discount_value)}
+        </span>
+      );
+    }
+
+    if (voucher.discount_type === 'percentage') {
+      return (
+        <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-semibold">
+          Diskon {voucher.discount_value}%
+        </span>
+      );
+    }
+
+    return null;
+  };
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
-        
-        <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 z-40"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b">
-            <h3 className="text-xl font-bold text-gray-900">Select Voucher</h3>
+          <div className="flex justify-between items-center p-6 border-b">
+            <div className="flex items-center gap-2">
+              <Tag className="w-6 h-6 text-orange-500" />
+              <h3 className="text-xl font-bold">Voucher Tersedia</h3>
+            </div>
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -117,107 +84,91 @@ export const VoucherModal = ({ isOpen, onClose, onApply, subtotal }: VoucherModa
             </button>
           </div>
 
-          {/* Manual Entry */}
-          <div className="p-6 border-b bg-gray-50">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Enter Voucher Code
-            </label>
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                placeholder="Enter voucher code"
-                value={manualCode}
-                onChange={(e) => setManualCode(e.target.value.toUpperCase())}
-                className="flex-1"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    handleApplyManual();
-                  }
-                }}
-              />
-              <Button
-                onClick={handleApplyManual}
-                isLoading={isApplying}
-                disabled={!manualCode.trim()}
-              >
-                Apply
-              </Button>
-            </div>
-          </div>
-
-          {/* Voucher List */}
+          {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
-            <h4 className="font-semibold text-gray-900 mb-4">Available Vouchers</h4>
-            
             {isLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
               </div>
             ) : vouchers.length === 0 ? (
-              <div className="text-center py-8">
-                <Tag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500">No vouchers available</p>
+              <div className="text-center py-12 text-gray-500">
+                <Tag className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                <p className="text-lg font-medium">Tidak ada voucher tersedia</p>
+                <p className="text-sm">Periksa kembali nanti untuk promo menarik!</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {vouchers.map((voucher) => {
                   const eligible = isVoucherEligible(voucher);
-                  const isSelected = selectedVoucher?.id === voucher.id;
+                  const isApplied = appliedVoucherCode === voucher.code;
 
                   return (
-                    <button
+                    <div
                       key={voucher.id}
-                      onClick={() => eligible && handleSelectVoucher(voucher)}
-                      disabled={!eligible}
-                      className={`w-full text-left border-2 rounded-lg p-4 transition-all ${
-                        isSelected
-                          ? 'border-green-500 bg-green-50'
-                          : eligible
-                          ? 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                          : 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
-                      }`}
+                      className={`border rounded-lg p-4 transition-all ${
+                        eligible
+                          ? 'border-gray-200 hover:border-orange-500 hover:shadow-md'
+                          : 'border-gray-100 bg-gray-50 opacity-60'
+                      } ${isApplied ? 'border-green-500 bg-green-50' : ''}`}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex gap-3 flex-1">
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                            voucher.type === 'FREE_SHIPPING' ? 'bg-green-100' : 'bg-blue-100'
-                          }`}>
-                            <Tag className={`w-6 h-6 ${
-                              voucher.type === 'FREE_SHIPPING' ? 'text-green-600' : 'text-blue-600'
-                            }`} />
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex-1">
+                          {/* Voucher Code */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <code className="bg-orange-100 text-orange-800 px-3 py-1 rounded font-bold text-sm">
+                              {voucher.code}
+                            </code>
+                            {getDiscountBadge(voucher)}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <h5 className="font-semibold text-gray-900 mb-1">{voucher.name}</h5>
-                            <p className="text-sm text-gray-600 mb-2">{voucher.description}</p>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded font-mono font-bold">
-                                {voucher.code}
-                              </span>
-                              <span className="text-sm font-semibold text-gray-900">
-                                {getVoucherValue(voucher)}
-                              </span>
-                            </div>
-                            {voucher.min_purchase && (
-                              <p className="text-xs text-gray-500 mt-2">
-                                Min. purchase: {formatCurrency(voucher.min_purchase)}
-                              </p>
-                            )}
-                            {!eligible && voucher.min_purchase && subtotal < voucher.min_purchase && (
-                              <p className="text-xs text-red-600 mt-1">
-                                Need {formatCurrency(voucher.min_purchase - subtotal)} more to use
-                              </p>
-                            )}
-                          </div>
+
+                          {/* Voucher Name */}
+                          <h4 className="font-semibold text-gray-900 mb-1">
+                            {voucher.name}
+                          </h4>
+
+                          {/* Voucher Description */}
+                          <p className="text-sm text-gray-600 mb-2">
+                            {voucher.description}
+                          </p>
+
+                          {/* Minimum Purchase - Fix: Handle undefined */}
+                          {(voucher.min_purchase ?? 0) > 0 && (
+                            <p className="text-xs text-gray-500">
+                              Min. belanja: {formatCurrency(voucher.min_purchase ?? 0)}
+                            </p>
+                          )}
+
+                          {/* Ineligible Warning */}
+                          {!eligible && (
+                            <p className="text-xs text-red-500 mt-2">
+                              ⚠️ Subtotal belanja kurang dari minimum
+                            </p>
+                          )}
+
+                          {/* Applied Badge */}
+                          {isApplied && (
+                            <p className="text-xs text-green-600 font-semibold mt-2">
+                              ✓ Voucher sedang digunakan
+                            </p>
+                          )}
                         </div>
-                        {isSelected && (
-                          <div className="flex-shrink-0 ml-3">
-                            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                              <Check className="w-4 h-4 text-white" />
-                            </div>
-                          </div>
-                        )}
+
+                        {/* Apply Button */}
+                        <button
+                          onClick={() => onApplyVoucher(voucher)}
+                          disabled={!eligible || isApplied}
+                          className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${
+                            isApplied
+                              ? 'bg-green-500 text-white cursor-default'
+                              : eligible
+                              ? 'bg-orange-500 text-white hover:bg-orange-600'
+                              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          {isApplied ? 'Terpilih' : 'Pakai'}
+                        </button>
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -225,24 +176,13 @@ export const VoucherModal = ({ isOpen, onClose, onApply, subtotal }: VoucherModa
           </div>
 
           {/* Footer */}
-          <div className="border-t p-6 flex gap-3">
-            <Button
-              variant="outline"
-              fullWidth
-              onClick={onClose}
-            >
-              Cancel
-            </Button>
-            <Button
-              fullWidth
-              onClick={handleConfirm}
-              disabled={!selectedVoucher}
-            >
-              Use Voucher
-            </Button>
+          <div className="border-t p-4 bg-gray-50">
+            <p className="text-sm text-gray-600 text-center">
+              💡 Pilih voucher yang sesuai dengan pembelian Anda
+            </p>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
-};
+}

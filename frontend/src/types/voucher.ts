@@ -5,34 +5,33 @@ export interface Voucher {
   code: string;
   name: string;
   description: string;
-  type: 'DISCOUNT' | 'FREE_SHIPPING';
-  discount_amount?: number;
-  min_purchase?: number;
-  max_discount?: number;
-  valid_from: string;
-  valid_until: string;
-  is_active: boolean;
-  usage_limit?: number;
+  
+  // Discount configuration
+  type: 'FIXED' | 'PERCENTAGE' | 'FREE_SHIPPING';  // ✅ Used in checkout page
+  discount_type: 'fixed' | 'percentage' | 'free_shipping';  // ✅ Used in modal
+  discount_value: number;
+  discount_amount?: number;  // ✅ Calculated discount amount
+  
+  // Purchase requirements
+  min_purchase: number;
+  max_discount: number | null;
+  
+  // Usage tracking
+  usage_limit: number;
   used_count: number;
+  
+  // Validity period
+  valid_from: Date;
+  valid_until: Date;
+  is_active: boolean;
+  
+  // Timestamps
+  created_at?: Date;
+  updated_at?: Date;
 }
 
-export interface UserVoucher {
-  id: number;
-  user_id: number;
-  voucher_id: number;
-  used_at?: string;
+export interface VoucherApplication {
   voucher: Voucher;
-}
-
-export interface ApplyVoucherRequest {
-  code: string;
-  subtotal: number;
-}
-
-export interface ApplyVoucherResponse {
-  valid: boolean;
-  message: string;
-  discount_amount?: number;
-  free_shipping?: boolean;
-  voucher?: Voucher;
+  discount_amount: number;
+  free_shipping: boolean;
 }

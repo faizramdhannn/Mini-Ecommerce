@@ -16,7 +16,7 @@ interface ProductCardProps {
 }
 
 export const ProductCard = ({ product }: ProductCardProps) => {
-  const { addItem, openCart } = useCartStore();
+  const { addItem } = useCartStore();
   const { isAuthenticated } = useAuthStore();
   const router = useRouter();
   const [isAnimating, setIsAnimating] = useState(false);
@@ -43,9 +43,9 @@ export const ProductCard = ({ product }: ProductCardProps) => {
       await addItem(product.id, 1);
       toast.success('Added to cart!');
       
-      // Open cart drawer after short delay
+      // ⭐ FEATURE: Auto-open cart drawer
       setTimeout(() => {
-        openCart();
+        window.dispatchEvent(new Event('open-cart'));
       }, 300);
     } catch (error) {
       toast.error('Failed to add to cart');
@@ -118,7 +118,28 @@ export const ProductCard = ({ product }: ProductCardProps) => {
             {product.name}
           </h3>
 
-          {/* Sold Count - Show instead of stock */}
+          {/* ⭐ FEATURE: Rating Display - Above sold count */}
+          {product.rating && (
+            <div className="flex items-center gap-1 mb-2">
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <span
+                    key={i}
+                    className={`text-sm ${
+                      i < Math.floor(product.rating!)
+                        ? 'text-yellow-400'
+                        : 'text-gray-300'
+                    }`}
+                  >
+                    ★
+                  </span>
+                ))}
+              </div>
+              <span className="text-xs text-gray-600">({product.rating})</span>
+            </div>
+          )}
+
+          {/* Sold Count */}
           {soldCount > 0 && (
             <p className="text-xs text-gray-500 mb-2">
               🔥 Terjual {soldCount}+
