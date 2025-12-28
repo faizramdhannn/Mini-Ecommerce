@@ -171,7 +171,7 @@ export default function ProductDetailPage() {
 
           {/* Sold Count */}
           {soldCount > 0 && (
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-white mb-4">
               🔥 <span className="font-semibold">Terjual {soldCount}+</span>
             </p>
           )}
@@ -181,12 +181,12 @@ export default function ProductDetailPage() {
             <div className="flex items-center gap-2 mb-4">
               <div className="flex items-center">
                 {[...Array(5)].map((_, i) => (
-                  <span key={i} className={`text-lg ${i < Math.floor(product.rating!) ? 'text-yellow-400' : 'text-gray-300'}`}>
+                  <span key={i} className={`text-lg ${i < Math.floor(product.rating!) ? 'text-yellow-400' : 'text-white'}`}>
                     ★
                   </span>
                 ))}
               </div>
-              <span className="text-sm text-gray-600">({product.rating}/5.0)</span>
+              <span className="text-sm text-white">({product.rating}/5.0)</span>
             </div>
           )}
 
@@ -271,15 +271,15 @@ export default function ProductDetailPage() {
 
           {/* Additional Info */}
           <div className="border-t pt-6 space-y-3 text-sm">
-            <div className="flex items-center gap-2 text-gray-600">
+            <div className="flex items-center gap-2 text-white">
               <span>✓</span>
               <span>Free shipping for orders over Rp 500.000</span>
             </div>
-            <div className="flex items-center gap-2 text-gray-600">
+            <div className="flex items-center gap-2 text-white">
               <span>✓</span>
               <span>30-day return policy</span>
             </div>
-            <div className="flex items-center gap-2 text-gray-600">
+            <div className="flex items-center gap-2 text-white">
               <span>✓</span>
               <span>Secure payment</span>
             </div>

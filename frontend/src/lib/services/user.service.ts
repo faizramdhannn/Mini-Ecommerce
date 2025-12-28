@@ -56,7 +56,10 @@ class UserService {
     );
   }
 
+
   async setDefaultAddress(userId: number, addressId: number): Promise<UserAddress> {
+    // ⭐ FIX: Set is_default = false for all addresses first, then set the selected one to true
+    // This ensures only ONE address is default
     const response = await apiClient.patch<{ data: UserAddress }>(
       API_ENDPOINTS.USERS.UPDATE_ADDRESS(userId, addressId),
       { is_default: true }

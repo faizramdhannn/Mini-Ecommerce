@@ -13,7 +13,7 @@ export default function StoresPage() {
       phone: '+62 22 1234 5678',
       hours: '10:00 - 22:00 WIB',
       image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80',
-      maps: 'https://maps.google.com',
+      maps: 'https://share.google/WkZgPeyRECTd5D5Rl',
     },
     {
       id: 2,
@@ -22,7 +22,7 @@ export default function StoresPage() {
       phone: '+62 21 9876 5432',
       hours: '10:00 - 22:00 WIB',
       image: 'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&q=80',
-      maps: 'https://maps.google.com',
+      maps: 'https://share.google/bvuWqIm04jo30RvY6',
     },
     {
       id: 3,
@@ -31,7 +31,7 @@ export default function StoresPage() {
       phone: '+62 31 5555 6666',
       hours: '10:00 - 22:00 WIB',
       image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&q=80',
-      maps: 'https://maps.google.com',
+      maps: 'https://share.google/Wumq3NP0mqDTzaYVw',
     },
   ];
 

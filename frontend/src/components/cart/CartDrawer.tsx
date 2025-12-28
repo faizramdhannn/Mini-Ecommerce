@@ -97,8 +97,8 @@ export function CartDrawer() {
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <div className="flex items-center gap-2">
-              <ShoppingBag className="w-5 h-5" />
-              <h2 className="text-lg font-semibold">
+              <ShoppingBag className="w-5 h-5 text-gray-900" />
+              <h2 className="text-lg font-semibold text-gray-900">
                 Keranjang ({items.length})
               </h2>
             </div>
@@ -106,7 +106,7 @@ export function CartDrawer() {
               onClick={() => setIsOpen(false)}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5 text-gray-900" />
             </button>
           </div>
 
@@ -137,7 +137,7 @@ export function CartDrawer() {
 
                     {/* Product Info */}
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-sm truncate">
+                      <h3 className="font-medium text-black text-sm truncate">
                         {item.product.name}
                       </h3>
                       <p className="text-gray-900 font-semibold mt-1">
@@ -149,17 +149,17 @@ export function CartDrawer() {
                         <button
                           onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
                           disabled={item.quantity <= 1}
-                          className="p-1 border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-1 border text-black rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
-                        <span className="text-sm font-medium w-8 text-center">
+                        <span className="text-sm text-black font-medium w-8 text-center">
                           {item.quantity}
                         </span>
                         <button
                           onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                           disabled={item.quantity >= item.product.stock}
-                          className="p-1 border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="p-1 border rounded text-black hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Plus className="w-3 h-3" />
                         </button>
@@ -184,8 +184,8 @@ export function CartDrawer() {
             <div className="border-t p-4 space-y-4">
               {/* Subtotal */}
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Subtotal</span>
-                <span className="text-xl font-bold">
+                <span className="text-black">Subtotal</span>
+                <span className="text-xl text-black font-bold">
                   {formatCurrency(getTotal())}
                 </span>
               </div>

@@ -324,11 +324,11 @@ export default function CartPage() {
 
                   {/* Quantity Controls */}
                   <div className="flex flex-col items-end space-y-4">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex text-black items-center space-x-2">
                       <button
                         onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
                         disabled={item.quantity <= 1 || isUpdating === item.id}
-                        className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-8 h-8 flex items-center justify-center border border-black rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Minus className="w-4 h-4" />
                       </button>
@@ -338,7 +338,7 @@ export default function CartPage() {
                       <button
                         onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                         disabled={item.quantity >= item.product.stock || isUpdating === item.id}
-                        className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-8 h-8 flex items-center justify-center border border-black rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Plus className="w-4 h-4" />
                       </button>

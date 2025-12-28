@@ -1,155 +1,262 @@
-'use client';
+"use client";
 
-import { X } from 'lucide-react';
+import { X, CreditCard as CreditCardIcon } from "lucide-react";
+import { useState } from "react";
 
+/* ================= TYPES ================= */
 interface PaymentModalsProps {
   showBankTransfer: boolean;
-  setShowBankTransfer: (show: boolean) => void;
+  setShowBankTransfer: (v: boolean) => void;
   showEWallet: boolean;
-  setShowEWallet: (show: boolean) => void;
-  onSelectEWallet?: (provider: string) => void;
+  setShowEWallet: (v: boolean) => void;
+  showCreditCard: boolean;
+  setShowCreditCard: (v: boolean) => void;
 }
 
+interface CreditCardData {
+  cardNumber: string;
+  cardName: string;
+  expiryMonth: string;
+  expiryYear: string;
+  cvv: string;
+}
+
+/* ================= COMPONENT ================= */
 export default function PaymentModals({
   showBankTransfer,
   setShowBankTransfer,
   showEWallet,
   setShowEWallet,
-  onSelectEWallet,
+  showCreditCard,
+  setShowCreditCard,
 }: PaymentModalsProps) {
-  const ewalletProviders = [
-    { id: 'gopay', name: 'GoPay', logo: '🏍️' },
-    { id: 'ovo', name: 'OVO', logo: '💜' },
-    { id: 'dana', name: 'DANA', logo: '💙' },
-    { id: 'shopeepay', name: 'ShopeePay', logo: '🛍️' },
+  const [cardData, setCardData] = useState<CreditCardData>({
+    cardNumber: "",
+    cardName: "",
+    expiryMonth: "",
+    expiryYear: "",
+    cvv: "",
+  });
+
+  /* ================= E-WALLET ================= */
+  const ewallets = [
+    {
+      id: "gopay",
+      name: "GoPay",
+      url: "https://www.gojek.com/gopay/",
+      border: "hover:border-green-500",
+    },
+    {
+      id: "ovo",
+      name: "OVO",
+      url: "https://www.ovo.id/",
+      border: "hover:border-purple-500",
+    },
+    {
+      id: "dana",
+      name: "DANA",
+      url: "https://www.dana.id/",
+      border: "hover:border-blue-500",
+    },
+    {
+      id: "shopeepay",
+      name: "ShopeePay",
+      url: "https://shopeepay.co.id/",
+      border: "hover:border-orange-500",
+    },
   ];
 
-  const handleEWalletSelect = (provider: string) => {
-    if (onSelectEWallet) {
-      onSelectEWallet(provider);
-    }
+  const openEWallet = (url: string) => {
     setShowEWallet(false);
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  /* ================= CREDIT CARD ================= */
+  const formatCard = (v: string) =>
+    v
+      .replace(/\D/g, "")
+      .slice(0, 16)
+      .replace(/(.{4})/g, "$1 ")
+      .trim();
+
+  const submitCard = (e: React.FormEvent) => {
+    e.preventDefault();
+    alert("Simulasi submit kartu kredit");
   };
 
   return (
     <>
-      {/* Bank Transfer Modal */}
+      {/* ================= BANK TRANSFER ================= */}
       {showBankTransfer && (
         <>
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
-            onClick={() => setShowBankTransfer(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold">Bank Transfer</h3>
-                <button
-                  onClick={() => setShowBankTransfer(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+          <Overlay onClick={() => setShowBankTransfer(false)} />
+          <Modal>
+            <Header
+              title="Transfer Bank"
+              onClose={() => setShowBankTransfer(false)}
+            />
 
-              <div className="space-y-4">
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-blue-600 rounded flex items-center justify-center text-white font-bold">
-                      BCA
+            <div className="space-y-4">
+              {[
+                { bank: "BCA", no: "1234567890", color: "bg-blue-600" },
+                { bank: "BNI", no: "0987654321", color: "bg-red-600" },
+              ].map((b) => (
+                <div key={b.bank} className="border rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div
+                      className={`w-12 h-12 ${b.color} text-black flex items-center justify-center rounded font-bold`}
+                    >
+                      {b.bank}
                     </div>
                     <div>
-                      <p className="font-semibold">Bank BCA</p>
-                      <p className="text-sm text-gray-500">a.n. Helobro Store</p>
+                      <p className="font-semibold">Bank {b.bank}</p>
+                      <p className="text-sm text-gray-500">
+                        a.n. Magadir Store
+                      </p>
                     </div>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded">
-                    <p className="text-xs text-gray-500 mb-1">Nomor Rekening</p>
-                    <p className="text-lg font-bold">1234567890</p>
-                  </div>
+                  <p className="bg-gray-50 p-3 rounded font-bold">{b.no}</p>
                 </div>
-
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-red-600 rounded flex items-center justify-center text-white font-bold">
-                      BNI
-                    </div>
-                    <div>
-                      <p className="font-semibold">Bank BNI</p>
-                      <p className="text-sm text-gray-500">a.n. Helobro Store</p>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded">
-                    <p className="text-xs text-gray-500 mb-1">Nomor Rekening</p>
-                    <p className="text-lg font-bold">0987654321</p>
-                  </div>
-                </div>
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                  <p className="text-sm text-yellow-800">
-                    💡 <strong>Catatan:</strong> Mohon transfer sesuai dengan total yang tertera.
-                    Upload bukti transfer setelah pembayaran.
-                  </p>
-                </div>
-              </div>
+              ))}
 
               <button
                 onClick={() => setShowBankTransfer(false)}
-                className="w-full mt-6 bg-black text-white py-3 rounded-lg hover:bg-gray-800"
+                className="w-full bg-black text-white py-3 rounded-lg"
               >
-                Mengerti
+                Saya Sudah Transfer
               </button>
             </div>
-          </div>
+          </Modal>
         </>
       )}
 
-      {/* E-Wallet Provider Selection Modal */}
-      {/* ⭐ FEATURE 6: E-Wallet Provider Selection BEFORE order creation */}
+      {/* ================= E-WALLET ================= */}
       {showEWallet && (
         <>
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
-            onClick={() => setShowEWallet(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold">Pilih E-Wallet</h3>
+          <Overlay onClick={() => setShowEWallet(false)} />
+          <Modal>
+            <Header
+              title="Pilih E-Wallet"
+              onClose={() => setShowEWallet(false)}
+            />
+
+            <div className="space-y-3">
+              {ewallets.map((e) => (
                 <button
-                  onClick={() => setShowEWallet(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full"
+                  key={e.id}
+                  onClick={() => openEWallet(e.url)}
+                  className={`w-full p-4 border-2 text-black rounded-lg text-left transition hover:shadow ${e.border}`}
                 >
-                  <X className="w-5 h-5" />
+                  {e.name}
                 </button>
-              </div>
-
-              <p className="text-gray-600 mb-6">
-                Pilih provider e-wallet untuk melanjutkan pembayaran
-              </p>
-
-              <div className="space-y-3">
-                {ewalletProviders.map((provider) => (
-                  <button
-                    key={provider.id}
-                    onClick={() => handleEWalletSelect(provider.id)}
-                    className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-lg hover:border-black hover:shadow-md transition-all"
-                  >
-                    <span className="text-3xl">{provider.logo}</span>
-                    <span className="font-semibold text-lg">{provider.name}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
-                <p className="text-sm text-blue-800">
-                  💡 Setelah memilih, Anda akan diarahkan ke halaman pembayaran provider.
-                </p>
-              </div>
+              ))}
             </div>
-          </div>
+
+            <p className="text-sm text-blue-700 bg-blue-50 p-3 rounded mt-4">
+              💡 Akan dibuka di tab baru
+            </p>
+          </Modal>
+        </>
+      )}
+
+      {/* ================= CREDIT CARD ================= */}
+      {showCreditCard && (
+        <>
+          <Overlay onClick={() => setShowCreditCard(false)} />
+          <Modal>
+            <Header
+              title="Kartu Kredit"
+              onClose={() => setShowCreditCard(false)}
+            />
+
+            <form onSubmit={submitCard} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Nomor Kartu</label>
+                <div className="relative">
+                  <input
+                    value={cardData.cardNumber}
+                    onChange={(e) =>
+                      setCardData({
+                        ...cardData,
+                        cardNumber: formatCard(e.target.value),
+                      })
+                    }
+                    className="w-full px-4 py-2 border rounded-lg"
+                    placeholder="1234 5678 9012 3456"
+                  />
+                  <CreditCardIcon className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Nama Pemegang</label>
+                <input
+                  value={cardData.cardName}
+                  onChange={(e) =>
+                    setCardData({
+                      ...cardData,
+                      cardName: e.target.value.toUpperCase(),
+                    })
+                  }
+                  className="w-full px-4 py-2 border rounded-lg uppercase"
+                  placeholder="JOHN DOE"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <input
+                  placeholder="MM"
+                  maxLength={2}
+                  className="px-4 py-2 border rounded-lg"
+                  onChange={(e) =>
+                    setCardData({ ...cardData, expiryMonth: e.target.value })
+                  }
+                />
+                <input
+                  placeholder="YY"
+                  maxLength={2}
+                  className="px-4 py-2 border rounded-lg"
+                  onChange={(e) =>
+                    setCardData({ ...cardData, expiryYear: e.target.value })
+                  }
+                />
+                <input
+                  placeholder="CVV"
+                  maxLength={3}
+                  className="px-4 py-2 border rounded-lg"
+                  onChange={(e) =>
+                    setCardData({ ...cardData, cvv: e.target.value })
+                  }
+                />
+              </div>
+
+              <button className="w-full bg-black text-white py-3 rounded-lg">
+                Bayar Sekarang
+              </button>
+            </form>
+          </Modal>
         </>
       )}
     </>
   );
 }
+
+/* ================= UI ================= */
+const Overlay = ({ onClick }: { onClick: () => void }) => (
+  <div className="fixed inset-0 bg-black/50 z-40" onClick={onClick} />
+);
+
+const Modal = ({ children }: { children: React.ReactNode }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-lg max-w-md w-full p-6">{children}</div>
+  </div>
+);
+
+const Header = ({ title, onClose }: { title: string; onClose: () => void }) => (
+  <div className="flex justify-between items-center mb-4">
+    <h3 className="text-xl text-black font-bold">{title}</h3>
+    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+      <X className="w-5 h-5" />
+    </button>
+  </div>
+);
