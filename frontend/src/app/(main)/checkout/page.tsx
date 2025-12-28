@@ -1,41 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MapPin, CreditCard, Building2, Wallet, Truck, Tag, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import PaymentModals from '@/components/payment/PaymentModals';
 
-// Mock data
-const mockAddress = {
-  id: '1',
-  label: 'Rumah',
-  recipient: 'John Doe',
-  phone: '+62 812-3456-7890',
-  address: 'Jl. Sudirman No. 123, RT 001/RW 002',
-  district: 'Kebayoran Baru',
-  city: 'Jakarta Selatan',
-  province: 'DKI Jakarta',
-  postal_code: '12190',
-  is_default: true,
-};
-
-const mockCartItems = [
-  {
-    id: 1,
-    name: 'Wireless Headphones Premium',
-    price: 899000,
-    quantity: 2,
-    image: '/products/headphone.jpg',
-  },
-  {
-    id: 2,
-    name: 'Smart Watch Series 5',
-    price: 1299000,
-    quantity: 1,
-    image: '/products/watch.jpg',
-  },
-];
-
+// Mock vouchers (ini tetap mock karena biasanya dari API)
 const mockVouchers = [
   { id: 1, code: 'WELCOME50', discount: 50000, description: 'Diskon Rp 50.000' },
   { id: 2, code: 'FREESHIP', discount: 0, description: 'Gratis Ongkir', freeShipping: true },
@@ -51,9 +21,75 @@ export default function CheckoutPage() {
   const [showEWallet, setShowEWallet] = useState(false);
   const [showCreditCard, setShowCreditCard] = useState(false);
   const [selectedEWalletProvider, setSelectedEWalletProvider] = useState<string>('');
+  
+  // State untuk data real
+  const [address, setAddress] = useState<any>(null);
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const address = mockAddress;
-  const cartItems = mockCartItems;
+  // Fetch data dari localStorage dan API
+  useEffect(() => {
+    const fetchCheckoutData = async () => {
+      try {
+        // 1. Ambil data cart dari localStorage
+        const cartData = localStorage.getItem('cart');
+        if (!cartData) {
+          alert('Keranjang kosong');
+          router.push('/cart');
+          return;
+        }
+
+        const cart = JSON.parse(cartData);
+        if (!cart.items || cart.items.length === 0) {
+          alert('Keranjang kosong');
+          router.push('/cart');
+          return;
+        }
+
+        setCartItems(cart.items);
+
+        // 2. Ambil alamat default dari API
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert('Silakan login terlebih dahulu');
+          router.push('/login?redirect=/checkout');
+          return;
+        }
+
+        const addressResponse = await fetch('http://localhost:8000/api/addresses', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!addressResponse.ok) {
+          throw new Error('Gagal mengambil alamat');
+        }
+
+        const addressData = await addressResponse.json();
+        
+        // Cari alamat default atau ambil alamat pertama
+        const defaultAddress = addressData.data.find((addr: any) => addr.is_default) || addressData.data[0];
+        
+        if (!defaultAddress) {
+          alert('Silakan tambahkan alamat pengiriman terlebih dahulu');
+          router.push('/account/addresses/new?redirect=/checkout');
+          return;
+        }
+
+        setAddress(defaultAddress);
+        setLoading(false);
+
+      } catch (error) {
+        console.error('Error fetching checkout data:', error);
+        alert('Terjadi kesalahan saat memuat data checkout');
+        setLoading(false);
+      }
+    };
+
+    fetchCheckoutData();
+  }, [router]);
 
   // Calculate totals
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -95,48 +131,143 @@ export default function CheckoutPage() {
     setSelectedEWalletProvider(provider);
   };
 
-  const handleCreditCardSubmit = (data: any) => {
-    console.log('Credit card data:', data);
-    // Process credit card payment
-    handlePlaceOrder();
+  // Handler untuk konfirmasi pembayaran dari modal
+  const handlePaymentConfirm = (paymentData?: any) => {
+    console.log('Payment data:', paymentData);
+    
+    // Close all modals
+    setShowBankTransfer(false);
+    setShowEWallet(false);
+    setShowCreditCard(false);
+    
+    // Store payment data if needed
+    if (paymentData) {
+      if (selectedPayment === 'e_wallet' && paymentData.phone) {
+        setSelectedEWalletProvider(paymentData.phone);
+      }
+      
+      // Process payment and create order
+      handlePlaceOrder(paymentData);
+    }
   };
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async (paymentData?: any) => {
     if (!selectedPayment) {
       alert('Silakan pilih metode pembayaran');
       return;
     }
 
-    // Prepare order data
-    const orderData = {
-      address_id: address.id,
-      items: cartItems.map(item => ({
-        product_id: item.id,
-        quantity: item.quantity,
-        price: item.price,
-      })),
-      payment_method: selectedPayment,
-      voucher_code: selectedVoucher,
-      subtotal,
-      shipping_cost: shippingCost,
-      discount,
-      total,
-      // Add payment-specific details
-      ...(selectedPayment === 'e_wallet' && { ewallet_provider: selectedEWalletProvider }),
-    };
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Silakan login terlebih dahulu');
+        router.push('/login?redirect=/checkout');
+        return;
+      }
 
-    console.log('Order data:', orderData);
-    
-    // TODO: Submit order to API
-    // const response = await fetch('/api/orders', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(orderData),
-    // });
+      // Prepare order data
+      const orderData = {
+        address_id: address.id,
+        items: cartItems.map(item => ({
+          product_id: item.product_id || item.id,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+        payment_method: selectedPayment,
+        voucher_code: selectedVoucher,
+        subtotal,
+        shipping_cost: shippingCost,
+        discount,
+        total,
+        // Add payment-specific details
+        ...(selectedPayment === 'e_wallet' && paymentData?.phone && { ewallet_phone: paymentData.phone }),
+        ...(selectedPayment === 'bank_transfer' && paymentData?.bank && { bank: paymentData.bank }),
+        ...(selectedPayment === 'credit_card' && paymentData && { 
+          card_last4: paymentData.cardNumber.slice(-4),
+          cardholder_name: paymentData.cardholderName 
+        }),
+      };
 
-    // Redirect to success page
-    router.push('/order-success');
+      console.log('Order data:', orderData);
+      
+      // Submit order to API
+      const response = await fetch('http://localhost:8000/api/orders', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify(orderData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Gagal membuat pesanan');
+      }
+
+      const result = await response.json();
+
+      // Clear cart after successful order
+      localStorage.removeItem('cart');
+
+      // Redirect to success page with order ID
+      router.push(`/order-success?order_id=${result.data.id}`);
+
+    } catch (error) {
+      console.error('Error creating order:', error);
+      alert(error instanceof Error ? error.message : 'Terjadi kesalahan saat membuat pesanan');
+    }
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Memuat data checkout...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No address state
+  if (!address) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Alamat Belum Tersedia</h2>
+          <p className="text-gray-600 mb-6">Silakan tambahkan alamat pengiriman terlebih dahulu</p>
+          <button
+            onClick={() => router.push('/account/addresses/new?redirect=/checkout')}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700"
+          >
+            Tambah Alamat
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // No cart items state
+  if (cartItems.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <Truck className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Keranjang Kosong</h2>
+          <p className="text-gray-600 mb-6">Silakan tambahkan produk ke keranjang terlebih dahulu</p>
+          <button
+            onClick={() => router.push('/')}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700"
+          >
+            Mulai Belanja
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -165,17 +296,20 @@ export default function CheckoutPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-gray-900">{address.recipient}</span>
+                      <span className="font-semibold text-gray-900">{address.recipient_name || address.recipient}</span>
                       <span className="text-sm bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
                         {address.label}
                       </span>
                     </div>
-                    <p className="text-gray-600 text-sm mb-1">{address.phone}</p>
+                    <p className="text-gray-600 text-sm mb-1">{address.phone_number || address.phone}</p>
                     <p className="text-gray-700">
-                      {address.address}, {address.district}
+                      {address.street_address || address.address}
                     </p>
                     <p className="text-gray-700">
-                      {address.city}, {address.province} {address.postal_code}
+                      {address.district}, {address.city}
+                    </p>
+                    <p className="text-gray-700">
+                      {address.province} {address.postal_code}
                     </p>
                   </div>
                 </div>
@@ -188,17 +322,19 @@ export default function CheckoutPage() {
               <div className="space-y-4">
                 {cartItems.map((item) => (
                   <div key={item.id} className="flex gap-4 pb-4 border-b last:border-0">
-                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-cover rounded-lg"
-                        onError={(e) => {
-                          e.currentTarget.src = '';
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                      <span className="text-gray-400 text-xs">IMG</span>
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                      {item.image || item.image_url ? (
+                        <img
+                          src={item.image || item.image_url}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <span className="text-gray-400 text-xs">IMG</span>
+                      )}
                     </div>
                     <div className="flex-1">
                       <h3 className="font-medium text-gray-900 mb-1">{item.name}</h3>
@@ -265,7 +401,7 @@ export default function CheckoutPage() {
                       <span className="font-medium text-gray-900 block">E-Wallet</span>
                       {selectedEWalletProvider && (
                         <span className="text-sm text-gray-500">
-                          {selectedEWalletProvider.toUpperCase()}
+                          {selectedEWalletProvider}
                         </span>
                       )}
                     </div>
@@ -351,7 +487,7 @@ export default function CheckoutPage() {
               </div>
 
               <button
-                onClick={handlePlaceOrder}
+                onClick={() => handlePlaceOrder()}
                 disabled={!selectedPayment}
                 className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
@@ -416,6 +552,7 @@ export default function CheckoutPage() {
         setShowEWallet={setShowEWallet}
         showCreditCard={showCreditCard}
         setShowCreditCard={setShowCreditCard}
+        onConfirm={handlePaymentConfirm}
       />
     </div>
   );

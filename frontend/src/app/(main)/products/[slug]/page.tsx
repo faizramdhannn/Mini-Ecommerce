@@ -3,39 +3,89 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Minus, Plus, ShoppingCart, Zap, Share2, Heart } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { Spinner } from '@/components/ui/Spinner';
+import Link from 'next/link';
+import { ChevronLeft, Heart, Share2, Star, Minus, Plus, ShoppingCart, Check } from 'lucide-react';
 import { productService } from '@/lib/services/product.service';
-import { useCartStore } from '@/lib/store/cart.store';
-import { useAuthStore } from '@/lib/store/auth.store';
-import { formatCurrency } from '@/lib/utils/format';
+import { cartService } from '@/lib/services/cart.service';
 import type { Product } from '@/types';
-import toast from 'react-hot-toast';
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+  }).format(amount);
+};
+
+// ⭐ FIX 3: Color extraction from product name
+const extractColorsFromName = (productName: string): string[] => {
+  const colors = productName.split(' - ').slice(1);
+  return colors.filter(Boolean);
+};
+
+// ⭐ FIX 3: Get product name without color suffix
+const getProductNameWithoutColor = (productName: string): string => {
+  return productName.split(' - ')[0];
+};
+
+// ⭐ FIX 3: Color styles mapping
+const COLOR_STYLES: Record<string, { bg: string; border: string; ring: string }> = {
+  'black': { bg: 'bg-black', border: 'border-gray-700', ring: 'ring-black' },
+  'white': { bg: 'bg-white', border: 'border-gray-300', ring: 'ring-gray-400' },
+  'red': { bg: 'bg-red-600', border: 'border-red-700', ring: 'ring-red-600' },
+  'blue': { bg: 'bg-blue-600', border: 'border-blue-700', ring: 'ring-blue-600' },
+  'green': { bg: 'bg-green-600', border: 'border-green-700', ring: 'ring-green-600' },
+  'yellow': { bg: 'bg-yellow-400', border: 'border-yellow-500', ring: 'ring-yellow-400' },
+  'pink': { bg: 'bg-pink-500', border: 'border-pink-600', ring: 'ring-pink-500' },
+  'purple': { bg: 'bg-purple-600', border: 'border-purple-700', ring: 'ring-purple-600' },
+  'grey': { bg: 'bg-gray-500', border: 'border-gray-600', ring: 'ring-gray-500' },
+  'gray': { bg: 'bg-gray-500', border: 'border-gray-600', ring: 'ring-gray-500' },
+  'brown': { bg: 'bg-amber-700', border: 'border-amber-800', ring: 'ring-amber-700' },
+  'navy': { bg: 'bg-blue-900', border: 'border-blue-950', ring: 'ring-blue-900' },
+  'orange': { bg: 'bg-orange-500', border: 'border-orange-600', ring: 'ring-orange-500' },
+};
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { addItem } = useCartStore();
-  const { isAuthenticated } = useAuthStore();
+  const slug = params.slug as string;
+
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  // ⭐ FIX 3: Color selection state
+  const [availableColors, setAvailableColors] = useState<string[]>([]);
+  const [selectedColor, setSelectedColor] = useState<string>('');
 
   useEffect(() => {
     loadProduct();
-  }, [params.slug]);
+  }, [slug]);
+
+  // ⭐ FIX 3: Extract colors when product loads
+  useEffect(() => {
+    if (product) {
+      const colors = extractColorsFromName(product.name);
+      setAvailableColors(colors);
+      
+      // Auto-select first color if available
+      if (colors.length > 0 && !selectedColor) {
+        setSelectedColor(colors[0]);
+      }
+    }
+  }, [product]);
 
   const loadProduct = async () => {
     try {
-      const slug = params.slug as string;
+      setIsLoading(true);
       const data = await productService.getProductBySlug(slug);
       setProduct(data);
     } catch (error) {
       console.error('Failed to load product:', error);
-      toast.error('Product not found');
+      alert('Produk tidak ditemukan');
       router.push('/collections/all-product');
     } finally {
       setIsLoading(false);
@@ -43,245 +93,371 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = async () => {
-    if (!isAuthenticated) {
-      toast.error('Please login to add items to cart');
-      router.push('/login');
+    if (!product) return;
+
+    // ⭐ FIX 3: Validate color selection
+    if (availableColors.length > 0 && !selectedColor) {
+      alert('Silakan pilih warna terlebih dahulu');
       return;
     }
 
+    try {
+      setIsAddingToCart(true);
+      // ⭐ FIXED: Correct addToCart call
+      await cartService.addToCart(product.id, quantity);
+      
+      // ⭐ FIX 3: Include color in success message
+      const colorText = selectedColor ? ` - ${selectedColor}` : '';
+      const confirmView = window.confirm(
+        `${product.name}${colorText} berhasil ditambahkan ke keranjang. Lihat keranjang?`
+      );
+      
+      if (confirmView) {
+        router.push('/cart');
+      }
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Gagal menambahkan ke keranjang');
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
     if (!product) return;
 
-    try {
-      await addItem(product.id, quantity);
-      toast.success('Added to cart!');
-    } catch (error) {
-      toast.error('Failed to add to cart');
+    // ⭐ FIX 3: Validate color selection
+    if (availableColors.length > 0 && !selectedColor) {
+      alert('Silakan pilih warna terlebih dahulu');
+      return;
     }
+
+    try {
+      // ⭐ FIXED: Correct addToCart call
+      await cartService.addToCart(product.id, quantity);
+      router.push('/checkout');
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Gagal memproses pembelian');
+    }
+  };
+
+  const calculateDiscount = () => {
+    if (!product || !product.compare_at_price || product.compare_at_price <= product.price) {
+      return 0;
+    }
+    return Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100);
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" />
+      <div className="min-h-screen bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <div className="aspect-square bg-gray-200 rounded-lg animate-pulse" />
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="aspect-square bg-gray-200 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="h-8 bg-gray-200 rounded animate-pulse" />
+              <div className="h-12 bg-gray-200 rounded animate-pulse w-1/2" />
+              <div className="h-20 bg-gray-200 rounded animate-pulse" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (!product) return null;
+  if (!product) {
+    return null;
+  }
 
-  const images = product.media?.map(m => m.url) || ['data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Crect fill="%23e5e7eb" width="100" height="100"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E'];
-  
-  // Calculate discount percentage
-  const discountPercentage = product.compare_at_price && Number(product.compare_at_price) > product.price
-    ? Math.round(((Number(product.compare_at_price) - product.price) / Number(product.compare_at_price)) * 100)
-    : 0;
-
-  // Calculate sold count
-  const soldPercentage = Math.floor(Math.random() * 40) + 30;
-  const soldCount = Math.floor(product.stock * soldPercentage / 100);
-
-  const isFlashSale = discountPercentage >= 30;
+  const images = product.media?.map(m => m.url) || ['/images/placeholder.png'];
+  const discount = calculateDiscount();
+  const displayName = availableColors.length > 0 
+    ? getProductNameWithoutColor(product.name) 
+    : product.name;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-        {/* Left: Images */}
-        <div>
-          {/* Main Image */}
-          <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-4 relative">
-            <Image
-              src={images[selectedImage]}
-              alt={product.name}
-              width={600}
-              height={600}
-              className="w-full h-full object-cover"
-              priority
-            />
-            
-            {/* Flash Sale Badge */}
-            {isFlashSale && (
-              <div className="absolute top-4 left-4 bg-gradient-to-r from-red-600 to-orange-600 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-sm font-bold shadow-lg z-10">
-                <Zap className="w-4 h-4 fill-current" />
-                FLASH SALE
-              </div>
-            )}
-            
-            {/* Discount Badge */}
-            {discountPercentage > 0 && (
-              <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-lg z-10">
-                -{discountPercentage}%
-              </div>
-            )}
-            
-            {product.stock === 0 && (
-              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                <span className="text-white text-lg font-semibold">Out of Stock</span>
-              </div>
-            )}
-          </div>
-          
-          {/* Thumbnail Images */}
-          {images.length > 1 && (
-            <div className="grid grid-cols-4 gap-2 sm:gap-4">
-              {images.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedImage(index)}
-                  className={`aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 transition-all ${
-                    selectedImage === index ? 'border-black' : 'border-transparent hover:border-gray-300'
-                  }`}
-                >
-                  <Image
-                    src={image}
-                    alt={`${product.name} ${index + 1}`}
-                    width={150}
-                    height={150}
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Description Section - Moved Below Images */}
-          {product.description && (
-            <div className="mt-8 bg-white rounded-lg border p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Product Description</h2>
-              <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-line">
-                {product.description}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right: Details */}
-        <div>
-          {/* Category & Brand Badges */}
-          <div className="mb-4 flex items-center gap-2 flex-wrap">
+    <div className="min-h-screen bg-white">
+      {/* Breadcrumb */}
+      <div className="bg-gray-50 border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center gap-2 text-sm">
+            <Link href="/" className="text-gray-600 hover:text-black">
+              Home
+            </Link>
+            <span className="text-gray-400">/</span>
+            <Link href="/collections/all-product" className="text-gray-600 hover:text-black">
+              Products
+            </Link>
             {product.category && (
-              <Badge variant="default">{product.category.name}</Badge>
-            )}
-            {product.brand && (
-              <Badge variant="default">{product.brand.name}</Badge>
-            )}
-          </div>
-
-          {/* Product Name */}
-          <h1 className="text-2xl sm:text-3xl font-bold mb-4">{product.name}</h1>
-
-          {/* Sold Count */}
-          {soldCount > 0 && (
-            <p className="text-sm text-white mb-4">
-              🔥 <span className="font-semibold">Terjual {soldCount}+</span>
-            </p>
-          )}
-
-          {/* Rating */}
-          {product.rating && (
-            <div className="flex items-center gap-2 mb-4">
-              <div className="flex items-center">
-                {[...Array(5)].map((_, i) => (
-                  <span key={i} className={`text-lg ${i < Math.floor(product.rating!) ? 'text-yellow-400' : 'text-white'}`}>
-                    ★
-                  </span>
-                ))}
-              </div>
-              <span className="text-sm text-white">({product.rating}/5.0)</span>
-            </div>
-          )}
-
-          {/* Price Section */}
-          <div className="mb-6 bg-gray-50 rounded-lg p-4">
-            {product.compare_at_price && Number(product.compare_at_price) > product.price && (
               <>
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-lg sm:text-xl text-gray-400 line-through">
-                    {formatCurrency(Number(product.compare_at_price))}
-                  </span>
-                  <Badge variant="danger" className="text-xs sm:text-sm font-bold">
-                    HEMAT {discountPercentage}%
-                  </Badge>
-                </div>
-                <div className={`text-3xl sm:text-4xl font-bold ${isFlashSale ? 'text-red-600' : 'text-gray-900'}`}>
-                  {formatCurrency(product.price)}
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  💰 Anda hemat {formatCurrency(Number(product.compare_at_price) - product.price)}
-                </p>
+                <span className="text-gray-400">/</span>
+                <Link
+                  href={`/collections/${product.category.slug}`}
+                  className="text-gray-600 hover:text-black"
+                >
+                  {product.category.name}
+                </Link>
               </>
             )}
-            
-            {(!product.compare_at_price || Number(product.compare_at_price) <= product.price) && (
-              <div className="text-3xl sm:text-4xl font-bold text-gray-900">
-                {formatCurrency(product.price)}
+            <span className="text-gray-400">/</span>
+            <span className="text-black font-medium truncate">{displayName}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-gray-600 hover:text-black mb-6"
+        >
+          <ChevronLeft className="w-5 h-5" />
+          Kembali
+        </button>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+          {/* Image Gallery */}
+          <div className="space-y-4">
+            <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+              <Image
+                src={images[selectedImage]}
+                alt={product.name}
+                fill
+                className="object-cover"
+                priority
+                unoptimized
+              />
+              {discount > 0 && (
+                <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                  -{discount}%
+                </div>
+              )}
+            </div>
+
+            {images.length > 1 && (
+              <div className="grid grid-cols-4 gap-2">
+                {images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedImage(idx)}
+                    className={`relative aspect-square bg-gray-100 rounded-lg overflow-hidden ${
+                      selectedImage === idx ? 'ring-2 ring-black' : ''
+                    }`}
+                  >
+                    <Image
+                      src={img}
+                      alt={`${product.name} ${idx + 1}`}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </button>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Quantity Selector */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-3">Quantity</label>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-10 h-10 flex items-center justify-center border-2 border-gray-300 rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-all disabled:opacity-50"
-                disabled={quantity <= 1}
+          {/* Product Info */}
+          <div className="space-y-6">
+            {product.category && (
+              <Link
+                href={`/collections/${product.category.slug}`}
+                className="text-sm text-gray-600 hover:text-black"
               >
-                <Minus className="w-5 h-5" />
-              </button>
-              <span className="text-xl font-semibold w-16 text-center">
-                {quantity}
-              </span>
+                {product.category.name}
+              </Link>
+            )}
+
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+                {displayName}
+              </h1>
+              
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <Star
+                      key={star}
+                      className="w-5 h-5 fill-yellow-400 text-yellow-400"
+                    />
+                  ))}
+                </div>
+                <span className="text-sm text-gray-600">(4.9) • 128 ulasan</span>
+              </div>
+
+              <div className="flex items-baseline gap-3">
+                <div className="text-3xl md:text-4xl font-bold text-gray-900">
+                  {formatCurrency(product.price)}
+                </div>
+                {product.compare_at_price && product.compare_at_price > product.price && (
+                  <div className="text-xl text-gray-400 line-through">
+                    {formatCurrency(product.compare_at_price)}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ⭐ FIX 3: Color Selector */}
+            {availableColors.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-900">
+                    Pilih Warna
+                  </label>
+                  {selectedColor && (
+                    <span className="text-sm text-gray-600 capitalize">
+                      {selectedColor}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {availableColors.map((color) => {
+                    const colorKey = color.toLowerCase();
+                    const colorStyle = COLOR_STYLES[colorKey] || COLOR_STYLES['black'];
+                    const isSelected = selectedColor === color;
+
+                    return (
+                      <button
+                        key={color}
+                        onClick={() => setSelectedColor(color)}
+                        className={`relative w-10 h-10 rounded-full border-2 transition-all ${
+                          isSelected 
+                            ? `${colorStyle.ring} ring-4 ring-offset-2` 
+                            : colorStyle.border
+                        }`}
+                        title={color}
+                      >
+                        <div className={`w-full h-full rounded-full ${colorStyle.bg}`}>
+                          {isSelected && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Check className={`w-5 h-5 ${
+                                colorKey === 'white' ? 'text-black' : 'text-white'
+                              }`} />
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Description */}
+            {product.description && (
+              <div className="prose prose-sm max-w-none">
+                <p className="text-gray-600 leading-relaxed">{product.description}</p>
+              </div>
+            )}
+
+            {/* Stock Status */}
+            <div className="flex items-center gap-2">
+              {product.stock > 0 ? (
+                <>
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm text-green-600 font-medium">
+                    Stok tersedia ({product.stock} unit)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="text-sm text-red-600 font-medium">Stok habis</span>
+                </>
+              )}
+            </div>
+
+            {/* Quantity Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-900">Jumlah</label>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={quantity <= 1}
+                  className="w-10 h-10 flex items-center text-black justify-center border border-black rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+                <input
+                  type="number"
+                  value={quantity}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 1;
+                    setQuantity(Math.max(1, Math.min(product.stock, val)));
+                  }}
+                  className="w-16 h-10 text-center text-black border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                  min="1"
+                  max={product.stock}
+                />
+                <button
+                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                  disabled={quantity >= product.stock}
+                  className="w-10 h-10 flex items-center text-black justify-center border border-black rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                <span className="text-sm text-gray-600 ml-2">
+                  Maks. {product.stock} unit
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
               <button
-                onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                className="w-10 h-10 flex items-center justify-center border-2 border-gray-300 rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-all disabled:opacity-50"
-                disabled={quantity >= product.stock || product.stock === 0}
+                onClick={handleAddToCart}
+                disabled={product.stock === 0 || isAddingToCart}
+                className="flex-1 bg-white border-2 border-black text-black py-3 px-6 rounded-lg font-semibold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
-                <Plus className="w-5 h-5" />
+                <ShoppingCart className="w-5 h-5" />
+                {isAddingToCart ? 'Menambahkan...' : 'Tambah ke Keranjang'}
+              </button>
+              <button
+                onClick={handleBuyNow}
+                disabled={product.stock === 0}
+                className="flex-1 bg-black text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Beli Sekarang
               </button>
             </div>
-          </div>
 
-          {/* Action Buttons */}
-          <div className="space-y-3 mb-6">
-            <Button
-              size="lg"
-              fullWidth
-              onClick={handleAddToCart}
-              disabled={product.stock === 0}
-              className={`text-base sm:text-lg py-4 ${
-                isFlashSale ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700' : ''
-              }`}
-            >
-              <ShoppingCart className="w-5 h-5 mr-2" />
-              {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
-            </Button>
+            {/* Additional Actions */}
+            <div className="flex gap-3 pt-4 border-t">
+              <button
+                onClick={() => setIsFavorite(!isFavorite)}
+                className="flex-1 flex items-center justify-center gap-2 py-2 border border-black rounded-lg hover:bg-gray-50"
+              >
+                <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
+                <span className="text-sm text-black font-medium">Favorit</span>
+              </button>
+              <button className="flex-1 flex items-center justify-center gap-2 py-2 border border-black rounded-lg hover:bg-gray-50">
+                <Share2 className="w-5 h-5" />
+                <span className="text-sm text-black font-medium">Bagikan</span>
+              </button>
+            </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" fullWidth>
-                <Heart className="w-5 h-5 mr-2" />
-                Wishlist
-              </Button>
-              <Button variant="outline" fullWidth>
-                <Share2 className="w-5 h-5 mr-2" />
-                Share
-              </Button>
-            </div>
-          </div>
-
-          {/* Additional Info */}
-          <div className="border-t pt-6 space-y-3 text-sm">
-            <div className="flex items-center gap-2 text-white">
-              <span>✓</span>
-              <span>Free shipping for orders over Rp 500.000</span>
-            </div>
-            <div className="flex items-center gap-2 text-white">
-              <span>✓</span>
-              <span>30-day return policy</span>
-            </div>
-            <div className="flex items-center gap-2 text-white">
-              <span>✓</span>
-              <span>Secure payment</span>
+            {/* Product Details - REMOVED SKU and WEIGHT */}
+            <div className="pt-6 border-t space-y-3">
+              <h3 className="font-semibold text-gray-900">Detail Produk</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Kategori</span>
+                  <span className="text-gray-900 font-medium">
+                    {product.category?.name || '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Stok</span>
+                  <span className="text-gray-900 font-medium">
+                    {product.stock} unit
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -22,13 +22,6 @@ export default function FlashSalePage() {
   const [flashSaleProducts, setFlashSaleProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ⭐ Auto-refresh every 10 seconds
-  const { refresh } = useAutoRefresh({
-    interval: 10000, // 10 seconds
-    enabled: true,
-    onRefresh: loadFlashSaleProducts,
-  });
-
   useEffect(() => {
     loadFlashSaleProducts();
   }, []);
@@ -123,7 +116,6 @@ export default function FlashSalePage() {
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold text-white">FLASH SALE</h1>
-                  <p className="text-white/90 text-sm">Diskon hingga 70%!</p>
                 </div>
               </div>
             </div>
@@ -156,11 +148,6 @@ export default function FlashSalePage() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* ⭐ Auto-refresh indicator */}
-      <div className="bg-blue-500 text-white text-center py-1 text-xs">
-        🔄 Data diperbarui otomatis setiap 10 detik
       </div>
 
       {/* Products Grid */}
