@@ -1,4 +1,4 @@
-// frontend/src/app/(main)/orders/[id]/page.tsx - UPDATED WITH AUTO-REFRESH
+// frontend/src/app/(main)/orders/[id]/page.tsx - WITHOUT AUTO-REFRESH
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { orderService } from '@/lib/services/order.service';
-import { useAutoRefresh } from '@/lib/hooks/useAutoRefresh';
 import { formatCurrency, formatDateTime } from '@/lib/utils/format';
 import { ORDER_STATUS } from '@/lib/utils/constants';
 import type { Order } from '@/types';
@@ -22,13 +21,6 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedResi, setCopiedResi] = useState(false);
-
-  // ⭐ Auto-refresh order status every 10 seconds
-  const { refresh } = useAutoRefresh({
-    interval: 10000, // 10 seconds
-    enabled: !!order, // Only when order is loaded
-    onRefresh: loadOrder,
-  });
 
   useEffect(() => {
     loadOrder();
@@ -90,7 +82,7 @@ export default function OrderDetailPage() {
       }
     }
 
-    return '/images/placeholder.png';
+    return 'https://placehold.co/400x400/e5e7eb/6b7280?text=No+Image';
   };
 
   if (isLoading) {
@@ -115,12 +107,6 @@ export default function OrderDetailPage() {
           <ArrowLeft className="w-5 h-5" />
           Back to Orders
         </button>
-
-        {/* ⭐ Auto-refresh indicator */}
-        <div className="bg-blue-500 text-white rounded-lg p-3 mb-6 flex items-center gap-2">
-          <span className="animate-pulse">🔄</span>
-          <span className="text-sm">Status pesanan diperbarui otomatis setiap 10 detik</span>
-        </div>
 
         <div className="bg-white rounded-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-6">

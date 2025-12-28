@@ -199,9 +199,6 @@ export default function CollectionPage() {
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
               {pageTitle}
             </h1>
-            <p className="text-lg md:text-xl text-gray-200">
-              {filteredProducts.length} produk tersedia
-            </p>
           </div>
         </div>
       </div>

@@ -2,75 +2,141 @@
 
 import { useState } from 'react';
 import { X, CreditCard, Building2, Smartphone } from 'lucide-react';
-import Image from 'next/image';
 
 interface PaymentModalsProps {
-  isOpen: boolean;
-  onClose: () => void;
-  paymentMethod: string;
+  showBankTransfer: boolean;
+  setShowBankTransfer: (show: boolean) => void;
+  showEWallet: boolean;
+  setShowEWallet: (show: boolean) => void;
+  showCreditCard: boolean;
+  setShowCreditCard: (show: boolean) => void;
   onConfirm: (paymentData?: any) => void;
 }
 
-// ⭐ FIX 4: Format card number with spaces
+// Format card number with spaces
 const formatCardNumber = (value: string): string => {
   const cleaned = value.replace(/\s/g, '');
   const chunks = cleaned.match(/.{1,4}/g);
   return chunks ? chunks.join(' ') : cleaned;
 };
 
-export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfirm }: PaymentModalsProps) {
+export default function PaymentModals({ 
+  showBankTransfer,
+  setShowBankTransfer,
+  showEWallet,
+  setShowEWallet,
+  showCreditCard,
+  setShowCreditCard,
+  onConfirm 
+}: PaymentModalsProps) {
   // Bank Transfer State
   const [selectedBank, setSelectedBank] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // E-Wallet State
   const [phoneNumber, setPhoneNumber] = useState('');
 
-  // ⭐ FIX 4: Credit Card State
+  // Credit Card State
   const [cardNumber, setCardNumber] = useState('');
   const [cardholderName, setCardholderName] = useState('');
   const [expiryMonth, setExpiryMonth] = useState('');
   const [expiryYear, setExpiryYear] = useState('');
   const [cvv, setCvv] = useState('');
 
-  if (!isOpen) return null;
+  // Reset all states when modal closes
+  const resetStates = () => {
+    setSelectedBank('');
+    setPhoneNumber('');
+    setCardNumber('');
+    setCardholderName('');
+    setExpiryMonth('');
+    setExpiryYear('');
+    setCvv('');
+    setIsProcessing(false);
+  };
 
-  const handleBankTransferSubmit = (e: React.FormEvent) => {
+  const handleBankTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    if (isProcessing) return;
+    
     if (!selectedBank) {
       alert('Silakan pilih bank');
       return;
     }
-    onConfirm({ bank: selectedBank });
+
+    try {
+      setIsProcessing(true);
+      await onConfirm({ 
+        method: 'bank_transfer',
+        bank: selectedBank 
+      });
+      resetStates();
+      setShowBankTransfer(false);
+    } catch (error) {
+      console.error('Error processing bank transfer:', error);
+      alert('Gagal memproses pembayaran. Silakan coba lagi.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleEwalletSubmit = (e: React.FormEvent) => {
+  const handleEwalletSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    if (isProcessing) return;
+    
     if (!phoneNumber) {
       alert('Silakan masukkan nomor telepon');
       return;
     }
-    onConfirm({ phone: phoneNumber });
+
+    // Validate phone number format
+    const phoneRegex = /^(08|\+62)[0-9]{8,12}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      alert('Format nomor telepon tidak valid. Gunakan format: 08xxxxxxxxxx');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      await onConfirm({ 
+        method: 'e_wallet',
+        phone: phoneNumber 
+      });
+      resetStates();
+      setShowEWallet(false);
+    } catch (error) {
+      console.error('Error processing e-wallet:', error);
+      alert('Gagal memproses pembayaran. Silakan coba lagi.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  // ⭐ FIX 4: Credit Card Form Submit Handler
-  const handleCreditCardSubmit = (e: React.FormEvent) => {
+  const handleCreditCardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    if (isProcessing) return;
 
     // Validation
-    if (!cardNumber || cardNumber.replace(/\s/g, '').length < 16) {
-      alert('Nomor kartu tidak valid');
+    const cleanCardNumber = cardNumber.replace(/\s/g, '');
+    
+    if (!cleanCardNumber || cleanCardNumber.length !== 16) {
+      alert('Nomor kartu harus 16 digit');
       return;
     }
-    if (!cardholderName) {
-      alert('Nama pemegang kartu harus diisi');
+    
+    if (!cardholderName || cardholderName.trim().length < 3) {
+      alert('Nama pemegang kartu harus diisi dengan benar');
       return;
     }
+    
     if (!expiryMonth || !expiryYear) {
       alert('Tanggal kadaluarsa harus diisi');
-      return;
-    }
-    if (!cvv || cvv.length < 3) {
-      alert('CVV tidak valid');
       return;
     }
 
@@ -80,17 +146,57 @@ export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfir
       return;
     }
 
-    onConfirm({
-      cardNumber: cardNumber.replace(/\s/g, ''),
-      cardholderName,
-      expiryMonth,
-      expiryYear,
-      cvv,
-    });
+    const yearNum = parseInt(expiryYear);
+    const currentYear = new Date().getFullYear();
+    if (yearNum < currentYear || yearNum > currentYear + 20) {
+      alert('Tahun tidak valid');
+      return;
+    }
+
+    // Check if card is expired
+    const currentMonth = new Date().getMonth() + 1;
+    if (yearNum === currentYear && monthNum < currentMonth) {
+      alert('Kartu sudah kadaluarsa');
+      return;
+    }
+    
+    if (!cvv || cvv.length < 3 || cvv.length > 4) {
+      alert('CVV tidak valid (3-4 digit)');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      await onConfirm({
+        method: 'credit_card',
+        cardNumber: cleanCardNumber,
+        cardholderName: cardholderName.trim(),
+        expiryMonth: expiryMonth.padStart(2, '0'),
+        expiryYear,
+        cvv,
+      });
+      resetStates();
+      setShowCreditCard(false);
+    } catch (error) {
+      console.error('Error processing credit card:', error);
+      alert('Gagal memproses pembayaran. Silakan coba lagi.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleClose = (modalType: 'bank' | 'ewallet' | 'card') => {
+    if (isProcessing) return;
+    
+    resetStates();
+    
+    if (modalType === 'bank') setShowBankTransfer(false);
+    if (modalType === 'ewallet') setShowEWallet(false);
+    if (modalType === 'card') setShowCreditCard(false);
   };
 
   // Bank Transfer Modal
-  if (paymentMethod === 'bank_transfer') {
+  if (showBankTransfer) {
     const banks = [
       { id: 'bca', name: 'BCA', logo: '/images/banks/bca.png' },
       { id: 'mandiri', name: 'Mandiri', logo: '/images/banks/mandiri.png' },
@@ -99,21 +205,32 @@ export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfir
     ];
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !isProcessing) {
+            handleClose('bank');
+          }
+        }}
+      >
         <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
           <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Building2 className="w-5 h-5" />
-              <h2 className="text-xl font-bold">Transfer Bank</h2>
+              <Building2 className="w-5 text-black h-5" />
+              <h2 className="text-xl text-black font-bold">Transfer Bank</h2>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <button 
+              onClick={() => handleClose('bank')}
+              disabled={isProcessing}
+              className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+            >
               <X className="w-6 h-6" />
             </button>
           </div>
 
           <form onSubmit={handleBankTransferSubmit} className="p-6">
             <div className="space-y-3 mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-black mb-2">
                 Pilih Bank
               </label>
               {banks.map((bank) => (
@@ -121,16 +238,17 @@ export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfir
                   key={bank.id}
                   type="button"
                   onClick={() => setSelectedBank(bank.id)}
-                  className={`w-full flex items-center gap-4 p-4 border-2 rounded-lg transition-all ${
+                  disabled={isProcessing}
+                  className={`w-full flex items-center gap-4 p-4 border-2 rounded-lg transition-all disabled:opacity-50 ${
                     selectedBank === bank.id
                       ? 'border-black bg-gray-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <div className="w-16 h-10 relative bg-white rounded border border-gray-200 flex items-center justify-center">
-                    <span className="text-xs font-semibold text-gray-600">{bank.name}</span>
+                    <span className="text-xs font-semibold text-black">{bank.name}</span>
                   </div>
-                  <span className="font-medium">{bank.name}</span>
+                  <span className="font-medium text-black">{bank.name}</span>
                 </button>
               ))}
             </div>
@@ -138,17 +256,18 @@ export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfir
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={onClose}
-                className="flex-1 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50"
+                onClick={() => handleClose('bank')}
+                disabled={isProcessing}
+                className="flex-1 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 disabled:opacity-50"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                disabled={!selectedBank}
+                disabled={!selectedBank || isProcessing}
                 className="flex-1 py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Lanjutkan
+                {isProcessing ? 'Memproses...' : 'Lanjutkan'}
               </button>
             </div>
           </form>
@@ -158,31 +277,43 @@ export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfir
   }
 
   // E-Wallet Modal
-  if (paymentMethod === 'e_wallet') {
+  if (showEWallet) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !isProcessing) {
+            handleClose('ewallet');
+          }
+        }}
+      >
         <div className="bg-white rounded-lg max-w-md w-full">
           <div className="border-b px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Smartphone className="w-5 h-5" />
-              <h2 className="text-xl font-bold">E-Wallet</h2>
+              <Smartphone className="w-5 text-black h-5" />
+              <h2 className="text-xl text-black font-bold">E-Wallet</h2>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <button 
+              onClick={() => handleClose('ewallet')}
+              disabled={isProcessing}
+              className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+            >
               <X className="w-6 h-6" />
             </button>
           </div>
 
           <form onSubmit={handleEwalletSubmit} className="p-6">
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-black mb-2">
                 Nomor Telepon
               </label>
               <input
                 type="tel"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
+                disabled={isProcessing}
                 placeholder="08xxxxxxxxxx"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black disabled:opacity-50"
                 required
               />
               <p className="text-xs text-gray-500 mt-2">
@@ -193,16 +324,18 @@ export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfir
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={onClose}
-                className="flex-1 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50"
+                onClick={() => handleClose('ewallet')}
+                disabled={isProcessing}
+                className="flex-1 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 disabled:opacity-50"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="flex-1 py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-800"
+                disabled={isProcessing}
+                className="flex-1 py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 disabled:opacity-50"
               >
-                Lanjutkan
+                {isProcessing ? 'Memproses...' : 'Lanjutkan'}
               </button>
             </div>
           </form>
@@ -211,17 +344,28 @@ export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfir
     );
   }
 
-  // ⭐ FIX 4: Credit Card Modal
-  if (paymentMethod === 'credit_card') {
+  // Credit Card Modal
+  if (showCreditCard) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !isProcessing) {
+            handleClose('card');
+          }
+        }}
+      >
         <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
           <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <CreditCard className="w-5 h-5" />
-              <h2 className="text-xl font-bold">Kartu Kredit/Debit</h2>
+              <CreditCard className="w-5 text-black h-5" />
+              <h2 className="text-xl text-black font-bold">Kartu Kredit/Debit</h2>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <button 
+              onClick={() => handleClose('card')}
+              disabled={isProcessing}
+              className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+            >
               <X className="w-6 h-6" />
             </button>
           </div>
@@ -242,8 +386,9 @@ export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfir
                       setCardNumber(formatted);
                     }
                   }}
+                  disabled={isProcessing}
                   placeholder="1234 5678 9012 3456"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black font-mono"
+                  className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black font-mono disabled:opacity-50"
                   maxLength={19}
                   required
                 />
@@ -258,8 +403,9 @@ export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfir
                   type="text"
                   value={cardholderName}
                   onChange={(e) => setCardholderName(e.target.value.toUpperCase())}
+                  disabled={isProcessing}
                   placeholder="NAMA SESUAI KARTU"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black uppercase"
+                  className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black uppercase disabled:opacity-50"
                   required
                 />
               </div>
@@ -279,8 +425,9 @@ export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfir
                         setExpiryMonth(val);
                       }
                     }}
+                    disabled={isProcessing}
                     placeholder="MM"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-center"
+                    className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-center disabled:opacity-50"
                     min="1"
                     max="12"
                     required
@@ -299,8 +446,9 @@ export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfir
                         setExpiryYear(val);
                       }
                     }}
+                    disabled={isProcessing}
                     placeholder="YYYY"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-center"
+                    className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-center disabled:opacity-50"
                     required
                   />
                 </div>
@@ -317,8 +465,9 @@ export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfir
                         setCvv(val);
                       }
                     }}
+                    disabled={isProcessing}
                     placeholder="123"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-center"
+                    className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-center disabled:opacity-50"
                     maxLength={4}
                     required
                   />
@@ -346,16 +495,18 @@ export default function PaymentModals({ isOpen, onClose, paymentMethod, onConfir
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={onClose}
-                className="flex-1 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50"
+                onClick={() => handleClose('card')}
+                disabled={isProcessing}
+                className="flex-1 py-3 border text-black border-gray-300 rounded-lg font-semibold hover:bg-gray-50 disabled:opacity-50"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="flex-1 py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-800"
+                disabled={isProcessing}
+                className="flex-1 py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 disabled:opacity-50"
               >
-                Bayar Sekarang
+                {isProcessing ? 'Memproses...' : 'Bayar Sekarang'}
               </button>
             </div>
           </form>

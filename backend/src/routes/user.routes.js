@@ -15,22 +15,19 @@ const addressValidation = [
   validate
 ];
 
-// ⭐ PENTING: Semua routes di sini HARUS protected dengan authenticate
-// Karena semua operasi user/address membutuhkan login
-
 // Routes
-router.get('/', authenticate, userController.getAllUsers);
-router.get('/:id', authenticate, userController.getUserById);
-router.put('/:id', authenticate, userController.updateUser);
-router.delete('/:id', authenticate, userController.deleteUser);
+router.get('/', userController.getAllUsers);
+router.get('/:id', userController.getUserById);
+router.put('/:id', userController.updateUser);
+router.delete('/:id', userController.deleteUser);
 
 // ⭐ NEW: Membership endpoint
 router.get('/me/membership', authenticate, userController.getMembershipInfo);
 
-// ⭐ FIX: Address routes - TAMBAHKAN authenticate middleware
-router.get('/:id/addresses', authenticate, userController.getUserAddresses);
-router.post('/:id/addresses', authenticate, addressValidation, userController.addUserAddress);
-router.put('/:id/addresses/:addressId', authenticate, addressValidation, userController.updateUserAddress);
-router.delete('/:id/addresses/:addressId', authenticate, userController.deleteUserAddress);
+// Address routes
+router.get('/:id/addresses', userController.getUserAddresses);
+router.post('/:id/addresses', addressValidation, userController.addUserAddress);
+router.put('/:id/addresses/:addressId', addressValidation, userController.updateUserAddress);
+router.delete('/:id/addresses/:addressId', userController.deleteUserAddress);
 
 module.exports = router;

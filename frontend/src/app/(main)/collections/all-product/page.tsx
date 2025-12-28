@@ -121,9 +121,6 @@ export default function AllProductsPage() {
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
               {getCategoryTitle()}
             </h1>
-            <p className="text-lg md:text-xl text-gray-200">
-              {pagination.total} produk tersedia
-            </p>
           </div>
         </div>
       </div>

@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react';
 import { MapPin, CreditCard, Building2, Wallet, Truck, Tag, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/lib/store/auth.store';
+import { userService } from '@/lib/services/user.service';
+import { orderService } from '@/lib/services/order.service';
+import PaymentModals from '@/components/payment/PaymentModals';
+import toast from 'react-hot-toast';
 
 // Mock vouchers
 const mockVouchers = [
@@ -13,9 +18,15 @@ const mockVouchers = [
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
   const [selectedPayment, setSelectedPayment] = useState<string>('');
   const [selectedVoucher, setSelectedVoucher] = useState<string | null>(null);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
+  
+  // Payment modal states
+  const [showBankTransfer, setShowBankTransfer] = useState(false);
+  const [showEWallet, setShowEWallet] = useState(false);
+  const [showCreditCard, setShowCreditCard] = useState(false);
   
   // State untuk data
   const [address, setAddress] = useState<any>(null);
@@ -23,84 +34,88 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchCheckoutData = async () => {
+    // Check authentication first
+    if (!isAuthenticated) {
+      toast.error('Silakan login terlebih dahulu');
+      router.push('/login?redirect=/checkout');
+      return;
+    }
+
+    fetchCheckoutData();
+  }, [isAuthenticated, router]);
+
+  const fetchCheckoutData = async () => {
+    try {
+      console.log('🔍 Fetching checkout data...');
+      
+      // 1. Baca cart items dari sessionStorage
+      const checkoutItemsStr = sessionStorage.getItem('checkoutItems');
+      console.log('📦 Raw sessionStorage data:', checkoutItemsStr);
+      
+      if (!checkoutItemsStr) {
+        console.error('❌ No checkout items found');
+        toast.error('Keranjang kosong. Silakan pilih item dari halaman cart.');
+        router.push('/cart');
+        return;
+      }
+
+      const selectedItems = JSON.parse(checkoutItemsStr);
+      console.log('✅ Parsed checkout items:', selectedItems);
+      
+      if (!selectedItems || selectedItems.length === 0) {
+        console.error('❌ Checkout items array is empty');
+        toast.error('Keranjang kosong');
+        router.push('/cart');
+        return;
+      }
+
+      setCartItems(selectedItems);
+
+      // 2. ⭐ FIX: Fetch address menggunakan endpoint yang benar
+      if (!user) {
+        toast.error('User data tidak ditemukan');
+        router.push('/login?redirect=/checkout');
+        return;
+      }
+
       try {
-        console.log('🔍 Fetching checkout data...');
+        // ⭐ GUNAKAN userService.getUserAddresses() yang sudah ada
+        const addressData = await userService.getUserAddresses(user.id);
+        console.log('📍 Address data:', addressData);
         
-        // 1. Baca cart items dari sessionStorage
-        const checkoutItemsStr = sessionStorage.getItem('checkoutItems');
-        console.log('📦 Raw sessionStorage data:', checkoutItemsStr);
-        
-        if (!checkoutItemsStr) {
-          console.error('❌ No checkout items found');
-          alert('Keranjang kosong. Silakan pilih item dari halaman cart.');
-          router.push('/cart');
+        if (!addressData || addressData.length === 0) {
+          toast.error('Silakan tambahkan alamat pengiriman terlebih dahulu');
+          router.push('/account/addresses/new?redirect=/checkout');
           return;
         }
 
-        const selectedItems = JSON.parse(checkoutItemsStr);
-        console.log('✅ Parsed checkout items:', selectedItems);
-        
-        if (!selectedItems || selectedItems.length === 0) {
-          console.error('❌ Checkout items array is empty');
-          alert('Keranjang kosong');
-          router.push('/cart');
-          return;
-        }
-
-        setCartItems(selectedItems);
-
-        // 2. Fetch address dari endpoint BARU
-        const token = localStorage.getItem('token');
-        if (!token) {
-          alert('Silakan login terlebih dahulu');
-          router.push('/login?redirect=/checkout');
-          return;
-        }
-
-        // ⭐ FIX: Gunakan endpoint /api/auth/me/addresses (tidak perlu userId)
-        const addressResponse = await fetch('http://localhost:8000/api/auth/me/addresses', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        console.log('📍 Address API response status:', addressResponse.status);
-
-        if (!addressResponse.ok) {
-          const errorData = await addressResponse.json();
-          console.error('📍 Address API error:', errorData);
-          throw new Error('Gagal mengambil alamat');
-        }
-
-        const addressResult = await addressResponse.json();
-        console.log('📍 Address API result:', addressResult);
-        
-        const addressData = addressResult.data || [];
-        
         // Cari alamat default atau ambil alamat pertama
         const defaultAddress = addressData.find((addr: any) => addr.is_default) || addressData[0];
         
         if (!defaultAddress) {
-          alert('Silakan tambahkan alamat pengiriman terlebih dahulu');
+          toast.error('Silakan tambahkan alamat pengiriman terlebih dahulu');
           router.push('/account/addresses/new?redirect=/checkout');
           return;
         }
 
         console.log('✅ Using address:', defaultAddress);
         setAddress(defaultAddress);
-        setLoading(false);
-
-      } catch (error) {
-        console.error('❌ Error fetching checkout data:', error);
-        alert('Terjadi kesalahan saat memuat data checkout');
-        setLoading(false);
+        
+      } catch (addressError: any) {
+        console.error('📍 Address API error:', addressError);
+        toast.error('Gagal mengambil alamat. Silakan tambahkan alamat terlebih dahulu.');
+        router.push('/account/addresses/new?redirect=/checkout');
+        return;
       }
-    };
 
-    fetchCheckoutData();
-  }, [router]);
+      setLoading(false);
+
+    } catch (error) {
+      console.error('❌ Error fetching checkout data:', error);
+      toast.error('Terjadi kesalahan saat memuat data checkout');
+      setLoading(false);
+    }
+  };
 
   // Calculate totals
   const subtotal = cartItems.reduce((sum, item) => {
@@ -119,6 +134,16 @@ export default function CheckoutPage() {
 
   const handlePaymentSelect = (method: string) => {
     setSelectedPayment(method);
+    
+    // Open corresponding modal
+    if (method === 'bank_transfer') {
+      setShowBankTransfer(true);
+    } else if (method === 'e_wallet') {
+      setShowEWallet(true);
+    } else if (method === 'credit_card') {
+      setShowCreditCard(true);
+    }
+    // COD doesn't need modal
   };
 
   const handleVoucherSelect = (code: string) => {
@@ -131,62 +156,57 @@ export default function CheckoutPage() {
   };
 
   const handleEditAddress = () => {
+    if (!address) return;
     router.push(`/account/addresses/${address.id}/edit?redirect=/checkout`);
   };
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async (paymentData?: any) => {
     if (!selectedPayment) {
-      alert('Silakan pilih metode pembayaran');
+      toast.error('Silakan pilih metode pembayaran');
+      return;
+    }
+
+    if (!address) {
+      toast.error('Alamat pengiriman tidak ditemukan');
       return;
     }
 
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Silakan login terlebih dahulu');
-        router.push('/login?redirect=/checkout');
-        return;
-      }
-
       const orderData = {
+        address_id: address.id,
         items: cartItems.map(item => ({
           product_id: item.product_id || item.product?.id || item.id,
           quantity: item.quantity || 1,
           price: item.product?.price || item.price,
+          name: item.product?.name || item.name,
+          image: item.product?.images?.[0] || item.product?.image || item.image,
         })),
         payment_method: selectedPayment,
-        shipping_cost: shippingCost,
+        payment_details: paymentData || {},
+        total_amount: total,
       };
 
-      console.log('📤 Sending order data:', orderData);
-      
-      const response = await fetch('http://localhost:8000/api/orders', {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify(orderData),
-      });
+      console.log('📤 Creating order with data:', orderData);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Gagal membuat pesanan');
-      }
+      // ⭐ GUNAKAN orderService yang sudah ada
+      const result = await orderService.createOrder(orderData);
 
-      const result = await response.json();
+      console.log('✅ Order created:', result);
 
       // Clear sessionStorage
       sessionStorage.removeItem('checkoutItems');
 
-      router.push(`/orders/${result.data.id}`);
+      toast.success('Pesanan berhasil dibuat!');
+      router.push(`/orders/${result.id}`);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error creating order:', error);
-      alert(error instanceof Error ? error.message : 'Terjadi kesalahan saat membuat pesanan');
+      const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Terjadi kesalahan saat membuat pesanan';
+      toast.error(errorMessage);
     }
   };
 
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -198,6 +218,7 @@ export default function CheckoutPage() {
     );
   }
 
+  // No address state
   if (!address) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -216,6 +237,7 @@ export default function CheckoutPage() {
     );
   }
 
+  // Empty cart state
   if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -506,6 +528,17 @@ export default function CheckoutPage() {
           </div>
         </>
       )}
+
+      {/* Payment Modals */}
+      <PaymentModals
+        showBankTransfer={showBankTransfer}
+        setShowBankTransfer={setShowBankTransfer}
+        showEWallet={showEWallet}
+        setShowEWallet={setShowEWallet}
+        showCreditCard={showCreditCard}
+        setShowCreditCard={setShowCreditCard}
+        onConfirm={handlePlaceOrder}
+      />
     </div>
   );
 }
