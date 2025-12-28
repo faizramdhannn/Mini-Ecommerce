@@ -35,3 +35,17 @@ export interface VoucherApplication {
   discount_amount: number;
   free_shipping: boolean;
 }
+
+// ✅ Request/Response types untuk apply voucher
+export interface ApplyVoucherRequest {
+  code: string;
+  subtotal: number;
+}
+
+export interface ApplyVoucherResponse {
+  valid: boolean;
+  message: string;
+  discount_amount?: number;
+  free_shipping?: boolean;
+  voucher?: Voucher;
+}
