@@ -10,25 +10,50 @@ const MOCK_VOUCHERS: Voucher[] = [
     code: 'HELOBRO',
     name: 'HeloBro Discount',
     description: 'Get Rp 100.000 off for your purchase',
-    type: 'DISCOUNT',
+    type: 'FIXED',  // ✅ FIXED: Changed from 'DISCOUNT' to 'FIXED'
+    discount_type: 'fixed',
+    discount_value: 100000,
     discount_amount: 100000,
     min_purchase: 200000,
-    valid_from: '2025-01-01',
-    valid_until: '2025-12-31',
-    is_active: true,
+    max_discount: null,
+    usage_limit: 100,
     used_count: 0,
+    valid_from: new Date('2025-01-01'),
+    valid_until: new Date('2025-12-31'),
+    is_active: true,
   },
   {
     id: 2,
     code: 'GRATONG',
     name: 'Gratong Free Shipping',
     description: 'Free shipping for all orders',
-    type: 'FREE_SHIPPING',
+    type: 'FREE_SHIPPING',  // ✅ Correct type
+    discount_type: 'free_shipping',
+    discount_value: 0,
+    discount_amount: 0,
     min_purchase: 0,
-    valid_from: '2025-01-01',
-    valid_until: '2025-12-31',
-    is_active: true,
+    max_discount: null,
+    usage_limit: 100,
     used_count: 0,
+    valid_from: new Date('2025-01-01'),
+    valid_until: new Date('2025-12-31'),
+    is_active: true,
+  },
+  {
+    id: 3,
+    code: 'DISKON20',
+    name: '20% Discount',
+    description: 'Get 20% off for your purchase',
+    type: 'PERCENTAGE',  // ✅ New example with percentage
+    discount_type: 'percentage',
+    discount_value: 20,
+    min_purchase: 500000,
+    max_discount: 200000,
+    usage_limit: 50,
+    used_count: 0,
+    valid_from: new Date('2025-01-01'),
+    valid_until: new Date('2025-12-31'),
+    is_active: true,
   },
 ];
 
@@ -95,12 +120,28 @@ class VoucherService {
             return;
           }
 
+          // Calculate discount based on type
+          let discountAmount = 0;
+          let freeShipping = false;
+
+          if (voucher.type === 'FIXED') {
+            discountAmount = voucher.discount_value;
+          } else if (voucher.type === 'PERCENTAGE') {
+            discountAmount = Math.floor((data.subtotal * voucher.discount_value) / 100);
+            // Apply max discount if specified
+            if (voucher.max_discount && discountAmount > voucher.max_discount) {
+              discountAmount = voucher.max_discount;
+            }
+          } else if (voucher.type === 'FREE_SHIPPING') {
+            freeShipping = true;
+          }
+
           // Voucher is valid
           resolve({
             valid: true,
             message: 'Voucher applied successfully',
-            discount_amount: voucher.type === 'DISCOUNT' ? voucher.discount_amount : 0,
-            free_shipping: voucher.type === 'FREE_SHIPPING',
+            discount_amount: discountAmount,
+            free_shipping: freeShipping,
             voucher,
           });
         }, 500);
