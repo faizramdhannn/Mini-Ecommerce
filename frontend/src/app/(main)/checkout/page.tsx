@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react';
 import { MapPin, CreditCard, Building2, Wallet, Truck, Tag, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import PaymentModals from '@/components/payment/PaymentModals';
 
-// Mock vouchers (ini tetap mock karena biasanya dari API)
+// Mock vouchers
 const mockVouchers = [
   { id: 1, code: 'WELCOME50', discount: 50000, description: 'Diskon Rp 50.000' },
   { id: 2, code: 'FREESHIP', discount: 0, description: 'Gratis Ongkir', freeShipping: true },
@@ -17,38 +16,41 @@ export default function CheckoutPage() {
   const [selectedPayment, setSelectedPayment] = useState<string>('');
   const [selectedVoucher, setSelectedVoucher] = useState<string | null>(null);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
-  const [showBankTransfer, setShowBankTransfer] = useState(false);
-  const [showEWallet, setShowEWallet] = useState(false);
-  const [showCreditCard, setShowCreditCard] = useState(false);
-  const [selectedEWalletProvider, setSelectedEWalletProvider] = useState<string>('');
   
-  // State untuk data real
+  // State untuk data
   const [address, setAddress] = useState<any>(null);
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch data dari localStorage dan API
   useEffect(() => {
     const fetchCheckoutData = async () => {
       try {
-        // 1. Ambil data cart dari localStorage
-        const cartData = localStorage.getItem('cart');
-        if (!cartData) {
+        console.log('🔍 Fetching checkout data...');
+        
+        // 1. Baca cart items dari sessionStorage
+        const checkoutItemsStr = sessionStorage.getItem('checkoutItems');
+        console.log('📦 Raw sessionStorage data:', checkoutItemsStr);
+        
+        if (!checkoutItemsStr) {
+          console.error('❌ No checkout items found');
+          alert('Keranjang kosong. Silakan pilih item dari halaman cart.');
+          router.push('/cart');
+          return;
+        }
+
+        const selectedItems = JSON.parse(checkoutItemsStr);
+        console.log('✅ Parsed checkout items:', selectedItems);
+        
+        if (!selectedItems || selectedItems.length === 0) {
+          console.error('❌ Checkout items array is empty');
           alert('Keranjang kosong');
           router.push('/cart');
           return;
         }
 
-        const cart = JSON.parse(cartData);
-        if (!cart.items || cart.items.length === 0) {
-          alert('Keranjang kosong');
-          router.push('/cart');
-          return;
-        }
+        setCartItems(selectedItems);
 
-        setCartItems(cart.items);
-
-        // 2. Ambil alamat default dari API
+        // 2. Fetch address dari endpoint BARU
         const token = localStorage.getItem('token');
         if (!token) {
           alert('Silakan login terlebih dahulu');
@@ -56,21 +58,29 @@ export default function CheckoutPage() {
           return;
         }
 
-        const addressResponse = await fetch('http://localhost:8000/api/addresses', {
+        // ⭐ FIX: Gunakan endpoint /api/auth/me/addresses (tidak perlu userId)
+        const addressResponse = await fetch('http://localhost:8000/api/auth/me/addresses', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });
 
+        console.log('📍 Address API response status:', addressResponse.status);
+
         if (!addressResponse.ok) {
+          const errorData = await addressResponse.json();
+          console.error('📍 Address API error:', errorData);
           throw new Error('Gagal mengambil alamat');
         }
 
-        const addressData = await addressResponse.json();
+        const addressResult = await addressResponse.json();
+        console.log('📍 Address API result:', addressResult);
+        
+        const addressData = addressResult.data || [];
         
         // Cari alamat default atau ambil alamat pertama
-        const defaultAddress = addressData.data.find((addr: any) => addr.is_default) || addressData.data[0];
+        const defaultAddress = addressData.find((addr: any) => addr.is_default) || addressData[0];
         
         if (!defaultAddress) {
           alert('Silakan tambahkan alamat pengiriman terlebih dahulu');
@@ -78,11 +88,12 @@ export default function CheckoutPage() {
           return;
         }
 
+        console.log('✅ Using address:', defaultAddress);
         setAddress(defaultAddress);
         setLoading(false);
 
       } catch (error) {
-        console.error('Error fetching checkout data:', error);
+        console.error('❌ Error fetching checkout data:', error);
         alert('Terjadi kesalahan saat memuat data checkout');
         setLoading(false);
       }
@@ -92,7 +103,12 @@ export default function CheckoutPage() {
   }, [router]);
 
   // Calculate totals
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = cartItems.reduce((sum, item) => {
+    const price = item.product?.price || item.price;
+    const quantity = item.quantity || 1;
+    return sum + (price * quantity);
+  }, 0);
+  
   const shippingCost = 15000;
   
   const appliedVoucher = mockVouchers.find(v => v.code === selectedVoucher);
@@ -103,15 +119,6 @@ export default function CheckoutPage() {
 
   const handlePaymentSelect = (method: string) => {
     setSelectedPayment(method);
-    
-    // Open respective modals
-    if (method === 'bank_transfer') {
-      setShowBankTransfer(true);
-    } else if (method === 'e_wallet') {
-      setShowEWallet(true);
-    } else if (method === 'credit_card') {
-      setShowCreditCard(true);
-    }
   };
 
   const handleVoucherSelect = (code: string) => {
@@ -127,31 +134,7 @@ export default function CheckoutPage() {
     router.push(`/account/addresses/${address.id}/edit?redirect=/checkout`);
   };
 
-  const handleSelectEWallet = (provider: string) => {
-    setSelectedEWalletProvider(provider);
-  };
-
-  // Handler untuk konfirmasi pembayaran dari modal
-  const handlePaymentConfirm = (paymentData?: any) => {
-    console.log('Payment data:', paymentData);
-    
-    // Close all modals
-    setShowBankTransfer(false);
-    setShowEWallet(false);
-    setShowCreditCard(false);
-    
-    // Store payment data if needed
-    if (paymentData) {
-      if (selectedPayment === 'e_wallet' && paymentData.phone) {
-        setSelectedEWalletProvider(paymentData.phone);
-      }
-      
-      // Process payment and create order
-      handlePlaceOrder(paymentData);
-    }
-  };
-
-  const handlePlaceOrder = async (paymentData?: any) => {
+  const handlePlaceOrder = async () => {
     if (!selectedPayment) {
       alert('Silakan pilih metode pembayaran');
       return;
@@ -165,32 +148,18 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Prepare order data
       const orderData = {
-        address_id: address.id,
         items: cartItems.map(item => ({
-          product_id: item.product_id || item.id,
-          quantity: item.quantity,
-          price: item.price,
+          product_id: item.product_id || item.product?.id || item.id,
+          quantity: item.quantity || 1,
+          price: item.product?.price || item.price,
         })),
         payment_method: selectedPayment,
-        voucher_code: selectedVoucher,
-        subtotal,
         shipping_cost: shippingCost,
-        discount,
-        total,
-        // Add payment-specific details
-        ...(selectedPayment === 'e_wallet' && paymentData?.phone && { ewallet_phone: paymentData.phone }),
-        ...(selectedPayment === 'bank_transfer' && paymentData?.bank && { bank: paymentData.bank }),
-        ...(selectedPayment === 'credit_card' && paymentData && { 
-          card_last4: paymentData.cardNumber.slice(-4),
-          cardholder_name: paymentData.cardholderName 
-        }),
       };
 
-      console.log('Order data:', orderData);
+      console.log('📤 Sending order data:', orderData);
       
-      // Submit order to API
       const response = await fetch('http://localhost:8000/api/orders', {
         method: 'POST',
         headers: { 
@@ -207,19 +176,17 @@ export default function CheckoutPage() {
 
       const result = await response.json();
 
-      // Clear cart after successful order
-      localStorage.removeItem('cart');
+      // Clear sessionStorage
+      sessionStorage.removeItem('checkoutItems');
 
-      // Redirect to success page with order ID
-      router.push(`/order-success?order_id=${result.data.id}`);
+      router.push(`/orders/${result.data.id}`);
 
     } catch (error) {
-      console.error('Error creating order:', error);
+      console.error('❌ Error creating order:', error);
       alert(error instanceof Error ? error.message : 'Terjadi kesalahan saat membuat pesanan');
     }
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -231,7 +198,6 @@ export default function CheckoutPage() {
     );
   }
 
-  // No address state
   if (!address) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -250,7 +216,6 @@ export default function CheckoutPage() {
     );
   }
 
-  // No cart items state
   if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -296,20 +261,17 @@ export default function CheckoutPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-gray-900">{address.recipient_name || address.recipient}</span>
-                      <span className="text-sm bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                        {address.label}
-                      </span>
+                      <span className="font-semibold text-gray-900">{address.recipient_name}</span>
+                      {address.label && (
+                        <span className="text-sm bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                          {address.label}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-gray-600 text-sm mb-1">{address.phone_number || address.phone}</p>
+                    <p className="text-gray-600 text-sm mb-1">{address.phone}</p>
+                    <p className="text-gray-700">{address.address_line}</p>
                     <p className="text-gray-700">
-                      {address.street_address || address.address}
-                    </p>
-                    <p className="text-gray-700">
-                      {address.district}, {address.city}
-                    </p>
-                    <p className="text-gray-700">
-                      {address.province} {address.postal_code}
+                      {address.city}, {address.province} {address.postal_code}
                     </p>
                   </div>
                 </div>
@@ -320,36 +282,44 @@ export default function CheckoutPage() {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="text-lg font-semibold mb-4 text-gray-900">Produk Dipesan</h2>
               <div className="space-y-4">
-                {cartItems.map((item) => (
-                  <div key={item.id} className="flex gap-4 pb-4 border-b last:border-0">
-                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                      {item.image || item.image_url ? (
-                        <img
-                          src={item.image || item.image_url}
-                          alt={item.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <span className="text-gray-400 text-xs">IMG</span>
-                      )}
+                {cartItems.map((item, index) => {
+                  const product = item.product || item;
+                  const price = product.price || item.price;
+                  const quantity = item.quantity || 1;
+                  const name = product.name || item.name || 'Product';
+                  const imageUrl = product.media?.[0]?.url || product.image_url || item.image;
+                  
+                  return (
+                    <div key={index} className="flex gap-4 pb-4 border-b last:border-0">
+                      <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <span className="text-gray-400 text-xs">IMG</span>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 mb-1">{name}</h3>
+                        <p className="text-gray-500 text-sm">Qty: {quantity}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-900">
+                          Rp {(price * quantity).toLocaleString('id-ID')}
+                        </p>
+                        <p className="text-gray-500 text-sm">
+                          @Rp {price.toLocaleString('id-ID')}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900 mb-1">{item.name}</h3>
-                      <p className="text-gray-500 text-sm">Qty: {item.quantity}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-gray-900">
-                        Rp {(item.price * item.quantity).toLocaleString('id-ID')}
-                      </p>
-                      <p className="text-gray-500 text-sm">
-                        @Rp {item.price.toLocaleString('id-ID')}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -397,14 +367,7 @@ export default function CheckoutPage() {
                 >
                   <div className="flex items-center gap-3">
                     <Wallet className="w-5 h-5 text-gray-700" />
-                    <div className="text-left">
-                      <span className="font-medium text-gray-900 block">E-Wallet</span>
-                      {selectedEWalletProvider && (
-                        <span className="text-sm text-gray-500">
-                          {selectedEWalletProvider}
-                        </span>
-                      )}
-                    </div>
+                    <span className="font-medium text-gray-900">E-Wallet</span>
                   </div>
                   <ChevronRight className="w-5 h-5 text-gray-400" />
                 </button>
@@ -487,7 +450,7 @@ export default function CheckoutPage() {
               </div>
 
               <button
-                onClick={() => handlePlaceOrder()}
+                onClick={handlePlaceOrder}
                 disabled={!selectedPayment}
                 className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
@@ -543,17 +506,6 @@ export default function CheckoutPage() {
           </div>
         </>
       )}
-
-      {/* Payment Modals */}
-      <PaymentModals
-        showBankTransfer={showBankTransfer}
-        setShowBankTransfer={setShowBankTransfer}
-        showEWallet={showEWallet}
-        setShowEWallet={setShowEWallet}
-        showCreditCard={showCreditCard}
-        setShowCreditCard={setShowCreditCard}
-        onConfirm={handlePaymentConfirm}
-      />
     </div>
   );
 }
